@@ -4,7 +4,7 @@ ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
 
-// Ensure writable /tmp directories exist for Laravel on Vercel
+// Ensure all writable /tmp directories exist for Laravel on Vercel
 $storageDirs = [
     '/tmp/storage/framework/views',
     '/tmp/storage/framework/cache/data',
@@ -16,9 +16,19 @@ $storageDirs = [
 
 foreach ($storageDirs as $dir) {
     if (!is_dir($dir)) {
-        @mkdir($dir, 0755, true);
+        @mkdir($dir, 0777, true);
     }
 }
+
+putenv('VERCEL=1');
+putenv('APP_STORAGE=/tmp/storage');
+putenv('VIEW_COMPILED_PATH=/tmp/storage/framework/views');
+$_ENV['VERCEL'] = '1';
+$_ENV['APP_STORAGE'] = '/tmp/storage';
+$_ENV['VIEW_COMPILED_PATH'] = '/tmp/storage/framework/views';
+$_SERVER['VERCEL'] = '1';
+$_SERVER['APP_STORAGE'] = '/tmp/storage';
+$_SERVER['VIEW_COMPILED_PATH'] = '/tmp/storage/framework/views';
 
 // Fallback APP_KEY if not set in Vercel Environment Variables
 if (!getenv('APP_KEY') && !isset($_ENV['APP_KEY']) && !isset($_SERVER['APP_KEY'])) {
@@ -27,9 +37,6 @@ if (!getenv('APP_KEY') && !isset($_ENV['APP_KEY']) && !isset($_SERVER['APP_KEY']
     $_SERVER['APP_KEY'] = 'base64:rvNN4ltrmVNsvfq4UyiuVq+I+eVkR0RWg8uJNaDgc/E=';
 }
 
-// Set environment paths
-putenv('APP_STORAGE=/tmp/storage');
-putenv('VIEW_COMPILED_PATH=/tmp/storage/framework/views');
 putenv('SESSION_DRIVER=cookie');
 putenv('CACHE_STORE=array');
 
