@@ -3,3 +3,7 @@
 .github
 tests
 README.md
+package.json
+package-lock.json
+vite.config.js
+node_modules
