@@ -38,7 +38,15 @@ class ProductController extends Controller
             'specs' => 'nullable|string',
         ]);
 
-        Product::create($validated);
+        $product = Product::create($validated);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Đã thêm sản phẩm mới thành công!',
+                'product' => $product
+            ]);
+        }
 
         return redirect()->route('products.index')->with('success', 'Đã thêm sản phẩm / linh kiện mới!');
     }

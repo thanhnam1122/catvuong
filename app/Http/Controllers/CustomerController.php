@@ -37,7 +37,15 @@ class CustomerController extends Controller
             'social_contact' => 'nullable|string|max:255',
         ]);
 
-        Customer::create($validated);
+        $customer = Customer::create($validated);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Đã thêm khách hàng mới thành công!',
+                'customer' => $customer
+            ]);
+        }
 
         return redirect()->route('customers.index')->with('success', 'Đã thêm khách hàng mới thành công!');
     }
