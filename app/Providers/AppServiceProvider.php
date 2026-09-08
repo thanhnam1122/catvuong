@@ -11,7 +11,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(\Illuminate\Contracts\Foundation\MaintenanceMode::class, function () {
+            return new \Illuminate\Foundation\FileBasedMaintenanceMode();
+        });
     }
 
     /**
@@ -22,3 +24,4 @@ class AppServiceProvider extends ServiceProvider
         //
     }
 }
+

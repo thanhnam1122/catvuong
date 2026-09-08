@@ -69,17 +69,6 @@ try {
     $kernel = $app->make(\Illuminate\Contracts\Http\Kernel::class);
     $request = \Illuminate\Http\Request::capture();
     $response = $kernel->handle($request);
-    
-    if (isset($response->exception) && $response->exception instanceof \Throwable) {
-        http_response_code(500);
-        header('Content-Type: text/plain; charset=utf-8');
-        echo "LỖI LARAVEL:\n";
-        echo $response->exception->getMessage() . "\n\n";
-        echo "File: " . $response->exception->getFile() . ":" . $response->exception->getLine() . "\n\n";
-        echo $response->exception->getTraceAsString();
-        exit;
-    }
-
     $response->send();
     
     try {
@@ -96,4 +85,5 @@ try {
     echo '<pre style="background: #ffffff; padding: 1rem; border-radius: 4px; overflow-x: auto; font-size: 0.85rem;">' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
     echo '</div>';
 }
+
 
