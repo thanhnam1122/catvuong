@@ -48,12 +48,6 @@ define('LARAVEL_START', microtime(true));
 require __DIR__ . '/../vendor/autoload.php';
 $app = require_once __DIR__ . '/../bootstrap/app.php';
 
-// Explicitly set storage and view compiled path on the app instance before handling request
-$app->useStoragePath('/tmp/storage');
-$app['config']->set('view.compiled', '/tmp/storage/framework/views');
-$app['config']->set('session.driver', 'cookie');
-$app['config']->set('cache.default', 'array');
-
 try {
     $app->handleRequest(\Illuminate\Http\Request::capture());
 } catch (\Throwable $e) {
