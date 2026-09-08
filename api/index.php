@@ -20,25 +20,38 @@ foreach ($storageDirs as $dir) {
     }
 }
 
-putenv('VERCEL=1');
-putenv('APP_STORAGE=/tmp/storage');
-putenv('VIEW_COMPILED_PATH=/tmp/storage/framework/views');
-$_ENV['VERCEL'] = '1';
-$_ENV['APP_STORAGE'] = '/tmp/storage';
-$_ENV['VIEW_COMPILED_PATH'] = '/tmp/storage/framework/views';
-$_SERVER['VERCEL'] = '1';
-$_SERVER['APP_STORAGE'] = '/tmp/storage';
-$_SERVER['VIEW_COMPILED_PATH'] = '/tmp/storage/framework/views';
+// Set environment variables for serverless runtime
+$envDefaults = [
+    'VERCEL' => '1',
+    'APP_STORAGE' => '/tmp/storage',
+    'VIEW_COMPILED_PATH' => '/tmp/storage/framework/views',
+    'APP_SERVICES_CACHE' => '/tmp/bootstrap/cache/services.php',
+    'APP_PACKAGES_CACHE' => '/tmp/bootstrap/cache/packages.php',
+    'APP_CONFIG_CACHE' => '/tmp/bootstrap/cache/config.php',
+    'APP_ROUTES_CACHE' => '/tmp/bootstrap/cache/routes-v7.php',
+    'APP_EVENTS_CACHE' => '/tmp/bootstrap/cache/events.php',
+    'SESSION_DRIVER' => 'cookie',
+    'CACHE_STORE' => 'array',
+    'DB_CONNECTION' => 'pgsql',
+    'DB_HOST' => 'aws-0-ap-southeast-1.pooler.supabase.com',
+    'DB_PORT' => '5432',
+    'DB_DATABASE' => 'postgres',
+    'DB_USERNAME' => 'postgres.jguhzodajzapzqmkzljd',
+    'DB_PASSWORD' => 'thanhnam1122004@',
+    'APP_KEY' => 'base64:rvNN4ltrmVNsvfq4UyiuVq+I+eVkR0RWg8uJNaDgc/E=',
+];
 
-// Fallback APP_KEY
-if (!getenv('APP_KEY') && !isset($_ENV['APP_KEY']) && !isset($_SERVER['APP_KEY'])) {
-    putenv('APP_KEY=base64:rvNN4ltrmVNsvfq4UyiuVq+I+eVkR0RWg8uJNaDgc/E=');
-    $_ENV['APP_KEY'] = 'base64:rvNN4ltrmVNsvfq4UyiuVq+I+eVkR0RWg8uJNaDgc/E=';
-    $_SERVER['APP_KEY'] = 'base64:rvNN4ltrmVNsvfq4UyiuVq+I+eVkR0RWg8uJNaDgc/E=';
+foreach ($envDefaults as $key => $value) {
+    if (!getenv($key)) {
+        putenv("{$key}={$value}");
+    }
+    if (!isset($_ENV[$key])) {
+        $_ENV[$key] = $value;
+    }
+    if (!isset($_SERVER[$key])) {
+        $_SERVER[$key] = $value;
+    }
 }
-
-putenv('SESSION_DRIVER=cookie');
-putenv('CACHE_STORE=array');
 
 $_SERVER['SCRIPT_NAME'] = '/index.php';
 $_SERVER['SCRIPT_FILENAME'] = __DIR__ . '/../public/index.php';
@@ -49,6 +62,7 @@ require __DIR__ . '/../vendor/autoload.php';
 $app = require_once __DIR__ . '/../bootstrap/app.php';
 
 try {
+    $app->useStoragePath('/tmp/storage');
     $app->handleRequest(\Illuminate\Http\Request::capture());
 } catch (\Throwable $e) {
     http_response_code(500);
@@ -59,3 +73,4 @@ try {
     echo '<pre style="background: #ffffff; padding: 1rem; border-radius: 4px; overflow-x: auto; font-size: 0.85rem;">' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
     echo '</div>';
 }
+
