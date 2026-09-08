@@ -3,21 +3,22 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\View\ViewServiceProvider;
 
 class VercelApplication extends Application
 {
     public function storagePath($path = '')
     {
-        $storagePath = (isset($_ENV['VERCEL']) || isset($_SERVER['VERCEL']) || getenv('VERCEL'))
+        // If storage is read-only (like on Vercel), redirect to /tmp/storage
+        $defaultStorage = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage';
+        $storagePath = (!is_writable($defaultStorage) || isset($_ENV['VERCEL']) || isset($_SERVER['VERCEL']) || getenv('VERCEL'))
             ? '/tmp/storage'
-            : parent::storagePath();
+            : $defaultStorage;
 
         return $path != '' ? $storagePath . DIRECTORY_SEPARATOR . ltrim($path, DIRECTORY_SEPARATOR) : $storagePath;
     }
 }
 
-$app = VercelApplication::configure(basePath: dirname(__DIR__))
+return VercelApplication::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
@@ -30,7 +31,3 @@ $app = VercelApplication::configure(basePath: dirname(__DIR__))
         //
     })
     ->create();
-
-$app->register(ViewServiceProvider::class);
-
-return $app;
