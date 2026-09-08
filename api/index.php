@@ -39,6 +39,8 @@ $envDefaults = [
     'DB_DATABASE' => 'postgres',
     'DB_USERNAME' => 'postgres.jguhzodajzapzqmkzljd',
     'DB_PASSWORD' => 'thanhnam1122004@',
+    'APP_MAINTENANCE_DRIVER' => 'file',
+    'APP_MAINTENANCE_STORE' => 'array',
     'APP_KEY' => 'base64:rvNN4ltrmVNsvfq4UyiuVq+I+eVkR0RWg8uJNaDgc/E=',
 ];
 
