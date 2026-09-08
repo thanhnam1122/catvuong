@@ -32,6 +32,7 @@ $envDefaults = [
     'APP_EVENTS_CACHE' => '/tmp/bootstrap/cache/events.php',
     'SESSION_DRIVER' => 'cookie',
     'CACHE_STORE' => 'array',
+    'LOG_CHANNEL' => 'stderr',
     'DB_CONNECTION' => 'pgsql',
     'DB_HOST' => 'aws-0-ap-southeast-1.pooler.supabase.com',
     'DB_PORT' => '5432',
@@ -63,7 +64,16 @@ $app = require_once __DIR__ . '/../bootstrap/app.php';
 
 try {
     $app->useStoragePath('/tmp/storage');
-    $app->handleRequest(\Illuminate\Http\Request::capture());
+    $kernel = $app->make(\Illuminate\Contracts\Http\Kernel::class);
+    $request = \Illuminate\Http\Request::capture();
+    $response = $kernel->handle($request);
+    $response->send();
+    
+    try {
+        $kernel->terminate($request, $response);
+    } catch (\Throwable $termException) {
+        // Safe ignore serverless termination cleanup
+    }
 } catch (\Throwable $e) {
     http_response_code(500);
     echo '<div style="font-family: sans-serif; padding: 2rem; background: #fff1f2; color: #9f1239; border: 1px solid #fecdd3; border-radius: 8px; margin: 2rem auto; max-width: 50rem;">';
