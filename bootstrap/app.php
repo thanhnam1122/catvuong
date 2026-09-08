@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\View\ViewServiceProvider;
 
 class VercelApplication extends Application
 {
@@ -16,7 +17,7 @@ class VercelApplication extends Application
     }
 }
 
-return VercelApplication::configure(basePath: dirname(__DIR__))
+$app = VercelApplication::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
@@ -29,3 +30,7 @@ return VercelApplication::configure(basePath: dirname(__DIR__))
         //
     })
     ->create();
+
+$app->register(ViewServiceProvider::class);
+
+return $app;
