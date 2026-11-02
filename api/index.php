@@ -33,16 +33,16 @@ $envDefaults = [
     'SESSION_DRIVER' => 'cookie',
     'CACHE_STORE' => 'array',
     'LOG_CHANNEL' => 'stderr',
-    'DB_CONNECTION' => 'sqlite',
-    'DB_DATABASE' => '/tmp/storage/database.sqlite',
+    'DB_CONNECTION' => 'pgsql',
+    'DB_HOST' => 'aws-0-ap-southeast-1.pooler.supabase.com',
+    'DB_PORT' => '5432',
+    'DB_DATABASE' => 'postgres',
+    'DB_USERNAME' => 'postgres.jguhzodajzapzqmkzljd',
+    'DB_PASSWORD' => 'thanhnam1122004@',
     'APP_MAINTENANCE_DRIVER' => 'file',
     'APP_MAINTENANCE_STORE' => 'array',
     'APP_KEY' => 'base64:rvNN4ltrmVNsvfq4UyiuVq+I+eVkR0RWg8uJNaDgc/E=',
 ];
-
-if (!file_exists('/tmp/storage/database.sqlite') && file_exists(__DIR__ . '/../database/database.sqlite')) {
-    @copy(__DIR__ . '/../database/database.sqlite', '/tmp/storage/database.sqlite');
-}
 
 foreach ($envDefaults as $key => $value) {
     if (!getenv($key)) {
