@@ -144,7 +144,7 @@
             @endif
 
             <!-- Form Đăng Nhập -->
-            <form action="{{ route('login.post') }}" method="POST">
+            <form action="/login" method="POST">
                 @csrf
 
                 <!-- Tài khoản -->

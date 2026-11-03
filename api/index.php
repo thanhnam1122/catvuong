@@ -42,6 +42,7 @@ $envDefaults = [
     'APP_MAINTENANCE_DRIVER' => 'file',
     'APP_MAINTENANCE_STORE' => 'array',
     'APP_KEY' => 'base64:rvNN4ltrmVNsvfq4UyiuVq+I+eVkR0RWg8uJNaDgc/E=',
+    'APP_URL' => isset($_SERVER['HTTP_HOST']) ? 'https://' . $_SERVER['HTTP_HOST'] : 'https://theodoicongno.vercel.app',
 ];
 
 foreach ($envDefaults as $key => $value) {
@@ -54,6 +55,16 @@ foreach ($envDefaults as $key => $value) {
     if (!isset($_SERVER[$key])) {
         $_SERVER[$key] = $value;
     }
+}
+
+// Ensure HTTPS is recognized in Vercel reverse proxy
+if (
+    (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https') ||
+    (isset($_SERVER['HTTP_X_FORWARDED_SSL']) && strtolower($_SERVER['HTTP_X_FORWARDED_SSL']) === 'on') ||
+    isset($_SERVER['VERCEL']) || getenv('VERCEL')
+) {
+    $_SERVER['HTTPS'] = 'on';
+    $_SERVER['SERVER_PORT'] = 443;
 }
 
 $_SERVER['SCRIPT_NAME'] = '/index.php';
