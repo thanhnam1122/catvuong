@@ -8,11 +8,11 @@ class VercelApplication extends Application
 {
     public function storagePath($path = '')
     {
-        $storagePath = (isset($_ENV['VERCEL']) || isset($_SERVER['VERCEL']) || getenv('VERCEL') || !is_writable(dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage'))
+        $storagePath = (isset($_ENV['VERCEL']) || isset($_SERVER['VERCEL']) || getenv('VERCEL'))
             ? '/tmp/storage'
-            : dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage';
+            : parent::storagePath($path);
 
-        return $path != '' ? $storagePath . DIRECTORY_SEPARATOR . ltrim($path, DIRECTORY_SEPARATOR) : $storagePath;
+        return $path != '' && $storagePath === '/tmp/storage' ? $storagePath . DIRECTORY_SEPARATOR . ltrim($path, DIRECTORY_SEPARATOR) : ($storagePath === '/tmp/storage' ? $storagePath : parent::storagePath($path));
     }
 
     public function getCachedServicesPath()
@@ -58,7 +58,10 @@ return VercelApplication::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->redirectTo(
+            guests: '/login',
+            users: '/hoa-don-dau-vao'
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

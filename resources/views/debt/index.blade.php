@@ -9,22 +9,24 @@
     <div class="card border-0 rounded-4 shadow-sm mb-4 bg-white" style="border: 0.0625rem solid var(--border-soft) !important;">
         <div class="card-body p-3 p-md-4">
             <form action="{{ route('debt.index') }}" method="GET" class="row g-2 align-items-end">
-                <!-- Chọn công ty / đơn vị -->
-                <div class="col-12 col-md-4 col-lg-3">
-                    <label class="form-label text-muted small mb-1 fw-semibold">
-                        <i class="bi bi-building me-1 text-primary"></i> Đơn vị / Công ty:
-                    </label>
-                    <select name="company_id" class="form-select form-select-sm rounded-3 shadow-none" onchange="this.form.submit()">
-                        <option value="all" {{ ($companyId == 'all' || empty($companyId)) ? 'selected' : '' }}>
-                            🏢 Tất cả đơn vị ({{ $companies->count() }})
-                        </option>
-                        @foreach($companies as $comp)
-                            <option value="{{ $comp->id }}" {{ $companyId == $comp->id ? 'selected' : '' }}>
-                                {{ $comp->name }} {{ $comp->code ? '('.$comp->code.')' : '' }}
+                @if(Auth::check() && Auth::user()->isAdmin())
+                    <!-- Chọn công ty / đơn vị (Chỉ dành cho Quản trị viên) -->
+                    <div class="col-12 col-md-4 col-lg-3">
+                        <label class="form-label text-muted small mb-1 fw-semibold">
+                            <i class="bi bi-building me-1 text-primary"></i> Đơn vị / CTY:
+                        </label>
+                        <select name="company_id" class="form-select form-select-sm rounded-3 shadow-none" onchange="this.form.submit()">
+                            <option value="all" {{ ($companyId == 'all' || empty($companyId)) ? 'selected' : '' }}>
+                                🏢 Tất cả đơn vị ({{ $companies->count() }})
                             </option>
-                        @endforeach
-                    </select>
-                </div>
+                            @foreach($companies as $comp)
+                                <option value="{{ $comp->id }}" {{ $companyId == $comp->id ? 'selected' : '' }}>
+                                    {{ $comp->name }} {{ $comp->code ? '('.$comp->code.')' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
 
                 <!-- Lọc theo loại nợ -->
                 <div class="col-6 col-md-4 col-lg-2">
@@ -199,7 +201,9 @@
                 <thead>
                     <tr>
                         <th style="width: 7.5rem;">Mã Phiếu</th>
-                        <th style="width: 10.5rem;">Đơn Vị Quản Lý</th>
+                        @if(Auth::check() && Auth::user()->isAdmin())
+                            <th style="width: 10.5rem;">Đơn Vị Quản Lý</th>
+                        @endif
                         <th style="width: 14rem;">Đối Tác / Khách Hàng</th>
                         <th style="width: 7.5rem;">Phân Loại</th>
                         <th class="text-end" style="width: 8.5rem;">Số Tiền Nợ</th>
@@ -229,17 +233,19 @@
                                 </div>
                             </td>
 
-                            <!-- Đơn vị quản lý -->
-                            <td>
-                                <span class="fw-semibold text-dark d-block text-truncate" style="max-width: 10rem;" title="{{ $item->company->name ?? '' }}">
-                                    {{ $item->company->name ?? '---' }}
-                                </span>
-                                @if(!empty($item->company->code))
-                                    <span class="badge bg-light text-secondary border rounded-pill" style="font-size: 0.68rem;">
-                                        {{ $item->company->code }}
+                            <!-- Đơn vị quản lý (Chỉ hiển thị cho Quản trị viên) -->
+                            @if(Auth::check() && Auth::user()->isAdmin())
+                                <td>
+                                    <span class="fw-semibold text-dark d-block text-truncate" style="max-width: 10rem;" title="{{ $item->company->name ?? '' }}">
+                                        {{ $item->company->name ?? '---' }}
                                     </span>
-                                @endif
-                            </td>
+                                    @if(!empty($item->company->code))
+                                        <span class="badge bg-light text-secondary border rounded-pill" style="font-size: 0.68rem;">
+                                            {{ $item->company->code }}
+                                        </span>
+                                    @endif
+                                </td>
+                            @endif
 
                             <!-- Đối tác & Diễn giải (Gọn gàng) -->
                             <td>
@@ -379,7 +385,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="10" class="text-center py-5 text-muted">
+                            <td colspan="{{ (Auth::check() && Auth::user()->isAdmin()) ? 10 : 9 }}" class="text-center py-5 text-muted">
                                 <div class="mb-2">
                                     <i class="bi bi-journal-x fs-1 text-secondary opacity-50"></i>
                                 </div>

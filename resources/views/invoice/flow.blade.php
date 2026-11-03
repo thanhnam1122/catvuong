@@ -14,38 +14,41 @@
     <div class="card border-0 rounded-4 shadow-sm mb-4 bg-white" style="border: 0.0625rem solid var(--border-soft) !important;">
         <div class="card-body p-3 p-md-4">
             <form action="{{ $isOut ? route('invoice.out') : route('invoice.in') }}" method="GET" class="row g-2 align-items-end">
-                <!-- Chọn công ty / đơn vị -->
-                <div class="col-12 col-md-5 col-lg-4">
-                    <label class="form-label text-muted small mb-1 fw-semibold">
-                        <i class="bi bi-building me-1 text-primary"></i> Đơn vị / Doanh nghiệp:
-                    </label>
-                    <select name="company_id" class="form-select form-select-sm rounded-3 shadow-none" onchange="this.form.submit()">
-                        <option value="all" {{ ($companyId == 'all' || empty($companyId)) ? 'selected' : '' }}>
-                            🏢 Tất cả doanh nghiệp ({{ $companies->count() }})
-                        </option>
-                        @foreach($companies as $comp)
-                            <option value="{{ $comp->id }}" {{ $companyId == $comp->id ? 'selected' : '' }}>
-                                {{ $comp->name }} {{ $comp->code ? '('.$comp->code.')' : '' }}
+                @if(Auth::check() && Auth::user()->isAdmin())
+                    <!-- Chọn CTY (Chỉ hiển thị cho Quản trị viên) -->
+                    <div class="col-12 col-md-5 col-lg-4">
+                        <label class="form-label text-muted small mb-1 fw-semibold">
+                            <i class="bi bi-building me-1 text-primary"></i> CTY:
+                        </label>
+                        <select name="company_id" class="form-select form-select-sm rounded-3 shadow-none" onchange="this.form.submit()">
+                            <option value="all" {{ ($companyId == 'all' || empty($companyId)) ? 'selected' : '' }}>
+                                🏢 Tất cả CTY ({{ $companies->count() }})
                             </option>
-                        @endforeach
-                    </select>
-                </div>
+                            @foreach($companies as $comp)
+                                <option value="{{ $comp->id }}" {{ $companyId == $comp->id ? 'selected' : '' }}>
+                                    {{ $comp->name }} {{ $comp->code ? '('.$comp->code.')' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
 
                 <!-- Lọc theo trạng thái thanh toán -->
-                <div class="col-6 col-md-3 col-lg-3">
+                <div class="{{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-6 col-md-3 col-lg-3' : 'col-6 col-md-4 col-lg-3' }}">
                     <label class="form-label text-muted small mb-1 fw-semibold">
                         <i class="bi bi-funnel me-1 text-primary"></i> Trạng thái thanh toán:
                     </label>
                     <select name="status" class="form-select form-select-sm rounded-3 shadow-none" onchange="this.form.submit()">
                         <option value="all" {{ empty($status) || $status == 'all' ? 'selected' : '' }}>Tất cả trạng thái</option>
                         <option value="unpaid" {{ $status == 'unpaid' ? 'selected' : '' }}>⏳ Chưa thanh toán</option>
+                        <option value="partial" {{ $status == 'partial' ? 'selected' : '' }}>🔄 Thanh toán 1 phần</option>
                         <option value="paid" {{ $status == 'paid' ? 'selected' : '' }}>✅ Đã thanh toán</option>
                         <option value="cancelled" {{ $status == 'cancelled' ? 'selected' : '' }}>❌ Đã hủy</option>
                     </select>
                 </div>
 
                 <!-- Tìm kiếm -->
-                <div class="col-12 col-md-4 col-lg-4">
+                <div class="{{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-12 col-md-4 col-lg-4' : 'col-12 col-md-8 col-lg-9' }}">
                     <label class="form-label text-muted small mb-1 fw-semibold">
                         <i class="bi bi-search me-1 text-primary"></i> Tìm kiếm:
                     </label>
@@ -184,8 +187,10 @@
                 <thead>
                     <tr>
                         <th style="width: 8.5rem;">Số Hóa Đơn</th>
-                        <th style="width: 11.5rem;">Doanh Nghiệp Của Bạn</th>
-                        <th style="width: 14rem;">{{ $isOut ? 'Khách Hàng (Người Nhận HĐ)' : 'Nhà Cung Cấp / Đối Tác' }}</th>
+                        @if(Auth::check() && Auth::user()->isAdmin())
+                            <th style="width: 11.5rem;">CTY</th>
+                        @endif
+                        <th style="width: 14rem;">Doanh Nghiệp</th>
                         <th class="text-end" style="width: 8.5rem;">Tiền Trước Thuế</th>
                         <th class="text-center" style="width: 6.5rem;">VAT (%)</th>
                         <th class="text-end" style="width: 9rem;">Tổng Thanh Toán</th>
@@ -215,30 +220,32 @@
                                 @endif
                             </td>
 
-                            <!-- Doanh nghiệp của bạn -->
-                            <td>
-                                <span class="fw-semibold text-dark d-block text-truncate" style="max-width: 11rem;" title="{{ $inv->company->name ?? '' }}">
-                                    {{ $inv->company->name ?? '---' }}
-                                </span>
-                                @if(!empty($inv->company->code))
-                                    <span class="badge bg-light text-secondary border rounded-pill" style="font-size: 0.68rem;">
-                                        {{ $inv->company->code }}
+                            <!-- CTY (Chỉ hiển thị cho Quản trị viên) -->
+                            @if(Auth::check() && Auth::user()->isAdmin())
+                                <td>
+                                    <span class="fw-semibold text-dark d-block text-truncate" style="max-width: 11rem;" title="{{ $inv->company->name ?? '' }}">
+                                        {{ $inv->company->name ?? '---' }}
                                     </span>
-                                @endif
-                            </td>
+                                    @if(!empty($inv->company->code))
+                                        <span class="badge bg-light text-secondary border rounded-pill" style="font-size: 0.68rem;">
+                                            {{ $inv->company->code }}
+                                        </span>
+                                    @endif
+                                </td>
+                            @endif
 
-                            <!-- Đối tác & Diễn giải -->
+                            <!-- Doanh nghiệp -->
                             <td>
-                                <div class="fw-semibold text-dark text-truncate" style="max-width: 13rem;" title="{{ $inv->partner->name ?? '' }}">
-                                    {{ $inv->partner->name ?? '---' }}
-                                </div>
-                                <div class="text-muted small text-truncate" style="max-width: 13rem;" title="{{ $inv->title }}">
-                                    {{ $inv->title }}
-                                </div>
-                                @if(!empty($inv->partner->phone))
-                                    <div class="text-muted" style="font-size: 0.72rem;">
-                                        <i class="bi bi-telephone text-primary"></i> {{ $inv->partner->phone }}
-                                    </div>
+                                @if($inv->partner)
+                                    <a href="javascript:void(0)" 
+                                       class="fw-semibold text-dark text-truncate d-inline-block text-decoration-none company-detail-link" 
+                                       style="max-width: 13rem;" 
+                                       title="Nhấn để xem thông tin doanh nghiệp"
+                                       onclick='showPartnerDetail(@json($inv->partner))'>
+                                        {{ $inv->partner->name }}
+                                    </a>
+                                @else
+                                    <span class="text-muted">---</span>
                                 @endif
                             </td>
 
@@ -286,18 +293,39 @@
 
                             <!-- Trạng thái -->
                             <td class="text-center">
-                                <form action="{{ route('invoice.toggle-status', $inv->id) }}" method="POST" class="d-inline">
-                                    @csrf
-                                    @if($isPaid)
-                                        <button type="submit" class="badge badge-soft-success py-1 px-2 rounded-pill border-0 shadow-none" title="Bấm để chuyển về Chưa thanh toán">
+                                @if($inv->status === 'paid' || $remaining <= 0)
+                                    <form action="{{ route('invoice.toggle-status', $inv->id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" class="badge badge-soft-success py-1 px-2 rounded-pill border-0 shadow-none text-nowrap" title="Bấm để chuyển về Chưa thanh toán">
                                             <i class="bi bi-check2-circle"></i> Đã thanh toán
                                         </button>
-                                    @else
-                                        <button type="submit" class="badge badge-soft-warning py-1 px-2 rounded-pill border-0 shadow-none" title="Bấm để đánh dấu Đã thanh toán">
-                                            <i class="bi bi-hourglass-split"></i> Chưa thanh toán
+                                    </form>
+                                @elseif($inv->paid_amount > 0 && $remaining > 0)
+                                    <div class="d-inline-flex flex-column align-items-center">
+                                        <button type="button" class="badge py-1 px-2 rounded-pill border-0 shadow-none mb-1 text-nowrap" style="background-color: #fef3c7; color: #d97706; border: 0.0625rem solid #fde68a !important;" onclick='openInvoicePaymentModal(@json($inv))' title="Nhấn để tiếp tục thanh toán">
+                                            <i class="bi bi-pie-chart-fill"></i> Thanh toán 1 phần
                                         </button>
-                                    @endif
-                                </form>
+                                        <span class="fw-bold font-monospace text-danger" style="font-size: 0.73rem;">
+                                            Thiếu: {{ number_format($remaining, 0, ',', '.') }} đ
+                                        </span>
+                                    </div>
+                                @elseif($inv->status === 'cancelled')
+                                    <span class="badge badge-soft-danger py-1 px-2 rounded-pill text-nowrap">
+                                        <i class="bi bi-x-circle"></i> Đã hủy
+                                    </span>
+                                @else
+                                    <div class="d-inline-flex flex-column align-items-center">
+                                        <form action="{{ route('invoice.toggle-status', $inv->id) }}" method="POST" class="d-inline">
+                                            @csrf
+                                            <button type="submit" class="badge badge-soft-warning py-1 px-2 rounded-pill border-0 shadow-none mb-1 text-nowrap" title="Bấm để đánh dấu Đã thanh toán đủ">
+                                                <i class="bi bi-hourglass-split"></i> Chưa thanh toán
+                                            </button>
+                                        </form>
+                                        <span class="fw-bold font-monospace text-danger" style="font-size: 0.73rem;">
+                                            Thiếu: {{ number_format($remaining, 0, ',', '.') }} đ
+                                        </span>
+                                    </div>
+                                @endif
                             </td>
 
                             <!-- Thao tác: Nút Thanh toán dài ra trên 1 dòng -->
@@ -343,7 +371,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="11" class="text-center py-5 text-muted">
+                            <td colspan="{{ (Auth::check() && Auth::user()->isAdmin()) ? 11 : 10 }}" class="text-center py-5 text-muted">
                                 <div class="mb-2">
                                     <i class="bi bi-receipt fs-1 text-secondary opacity-50"></i>
                                 </div>
@@ -387,24 +415,28 @@
                 <input type="hidden" name="type" value="{{ $flow }}">
                 <div class="modal-body p-4">
                     <div class="row g-3">
-                        <!-- Doanh nghiệp của bạn -->
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold text-dark small mb-1">
-                                Thuộc Doanh Nghiệp <span class="text-danger">*</span>
-                            </label>
-                            <select name="company_id" class="form-select rounded-3 shadow-none" required>
-                                @foreach($companies as $comp)
-                                    <option value="{{ $comp->id }}" {{ $companyId == $comp->id ? 'selected' : '' }}>
-                                        {{ $comp->name }} {{ $comp->code ? '('.$comp->code.')' : '' }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                        <!-- CTY -->
+                        @if(Auth::check() && Auth::user()->isAdmin())
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold text-dark small mb-1">
+                                    Thuộc CTY <span class="text-danger">*</span>
+                                </label>
+                                <select name="company_id" class="form-select rounded-3 shadow-none" required>
+                                    @foreach($companies as $comp)
+                                        <option value="{{ $comp->id }}" {{ $companyId == $comp->id ? 'selected' : '' }}>
+                                            {{ $comp->name }} {{ $comp->code ? '('.$comp->code.')' : '' }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @else
+                            <input type="hidden" name="company_id" value="{{ Auth::user()->company_id }}">
+                        @endif
 
-                        <!-- Đối tác / Khách hàng -->
-                        <div class="col-12 col-md-6">
+                        <!-- Doanh nghiệp / Đối tác -->
+                        <div class="col-12 {{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-md-6' : 'col-md-12' }}">
                             <label class="form-label fw-semibold text-dark small mb-1">
-                                {{ $isOut ? 'Khách hàng (Người nhận HĐ)' : 'Nhà cung cấp / Đối tác' }} <span class="text-danger">*</span>
+                                {{ $isOut ? 'Khách hàng / Doanh nghiệp nhận HĐ' : 'Nhà cung cấp / Doanh nghiệp xuất HĐ' }} <span class="text-danger">*</span>
                             </label>
                             <select name="partner_id" id="flow_partner_select" class="form-select rounded-3 shadow-none">
                                 <option value="">-- Chọn đối tác đã có --</option>
@@ -478,17 +510,20 @@
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold text-dark small mb-1">Đã thanh toán trước (nếu có)</label>
                             <div class="input-group">
-                                <input type="number" step="1000" name="paid_amount" class="form-control rounded-start-3 shadow-none" placeholder="0" value="0">
+                                <input type="number" step="1000" name="paid_amount" id="flow_create_paid" class="form-control rounded-start-3 shadow-none" placeholder="0" value="0" oninput="updateCreatePaidState()">
                                 <span class="input-group-text bg-light text-muted rounded-end-3">đ</span>
                             </div>
-                            <div class="form-text small">Nhập 0 nếu chưa thanh toán đợt nào</div>
+                            <div class="form-text small d-flex justify-content-between mt-1">
+                                <span>Còn thiếu: <strong id="flow_create_remaining" class="text-danger font-monospace">0 đ</strong></span>
+                            </div>
                         </div>
 
                         <!-- Trạng thái -->
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold text-dark small mb-1">Trạng thái thanh toán</label>
-                            <select name="status" class="form-select rounded-3 shadow-none" required>
+                            <select name="status" id="flow_status_select" class="form-select rounded-3 shadow-none" required>
                                 <option value="unpaid">⏳ Chưa thanh toán</option>
+                                <option value="partial">🔄 Thanh toán 1 phần</option>
                                 <option value="paid">✅ Đã thanh toán đủ</option>
                             </select>
                         </div>
@@ -549,13 +584,21 @@
                 @csrf
                 <div class="modal-body p-4">
                     <div class="p-3 mb-3 rounded-3" style="background-color: var(--blue-soft-50); border: 0.0625rem solid var(--blue-soft-200);">
-                        <div class="d-flex justify-content-between text-muted small mb-1">
+                        <div class="d-flex justify-content-between text-muted small mb-2">
                             <span id="invPayNumber" class="fw-bold font-monospace text-dark"></span>
-                            <span id="invPayPartner"></span>
+                            <span id="invPayPartner" class="fw-semibold text-primary"></span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-baseline">
-                            <span class="text-muted small">Số tiền còn lại:</span>
-                            <span id="invPayRemaining" class="fs-5 fw-bold text-primary"></span>
+                        <div class="d-flex justify-content-between align-items-baseline mb-1">
+                            <span class="text-muted small">Tổng tiền hóa đơn:</span>
+                            <span id="invPayTotal" class="fw-bold text-dark fs-6">0 đ</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-baseline mb-1">
+                            <span class="text-muted small">Đã thanh toán trước đó:</span>
+                            <span id="invPayCurrentPaid" class="fw-medium text-success">0 đ</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-baseline border-top pt-2 mt-2">
+                            <span class="text-muted small fw-bold">Hiện còn thiếu:</span>
+                            <span id="invPayRemaining" class="fs-5 fw-bold text-danger font-monospace">0 đ</span>
                         </div>
                     </div>
 
@@ -564,8 +607,18 @@
                             Số tiền thanh toán đợt này (VNĐ) <span class="text-danger">*</span>
                         </label>
                         <div class="input-group">
-                            <input type="number" step="1000" name="amount" id="invPayInputAmount" class="form-control fs-5 fw-bold text-success rounded-start-3 shadow-none" required>
+                            <input type="number" step="1000" name="amount" id="invPayInputAmount" class="form-control fs-5 fw-bold text-success rounded-start-3 shadow-none" required oninput="previewPaymentRemaining()">
                             <span class="input-group-text bg-light text-muted rounded-end-3">đ</span>
+                        </div>
+                        <div id="invPayPreviewResult" class="mt-2 p-2 rounded-3 small bg-light border">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted">Còn thiếu sau lần trả này:</span>
+                                <span id="invPayPreviewRemaining" class="fw-bold text-danger font-monospace">0 đ</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-1">
+                                <span class="text-muted">Trạng thái mới:</span>
+                                <span id="invPayPreviewStatus" class="badge badge-soft-success py-1 px-2 rounded-pill">Đã thanh toán đủ</span>
+                            </div>
                         </div>
                     </div>
 
@@ -604,16 +657,20 @@
                 <input type="hidden" name="type" id="edit_inv_type" value="{{ $flow }}">
                 <div class="modal-body p-4">
                     <div class="row g-3">
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold text-dark small mb-1">Thuộc Doanh Nghiệp</label>
-                            <select name="company_id" id="edit_inv_company_id" class="form-select rounded-3 shadow-none" required>
-                                @foreach($companies as $comp)
-                                    <option value="{{ $comp->id }}">{{ $comp->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold text-dark small mb-1">Đối tác / Khách hàng</label>
+                        @if(Auth::check() && Auth::user()->isAdmin())
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold text-dark small mb-1">Thuộc CTY</label>
+                                <select name="company_id" id="edit_inv_company_id" class="form-select rounded-3 shadow-none" required>
+                                    @foreach($companies as $comp)
+                                        <option value="{{ $comp->id }}">{{ $comp->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @else
+                            <input type="hidden" name="company_id" id="edit_inv_company_id" value="{{ Auth::user()->company_id }}">
+                        @endif
+                        <div class="col-12 {{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-md-6' : 'col-md-12' }}">
+                            <label class="form-label fw-semibold text-dark small mb-1">Doanh Nghiệp / Đối Tác</label>
                             <select name="partner_id" id="edit_inv_partner_id" class="form-select rounded-3 shadow-none" required>
                                 @foreach($partners as $p)
                                     <option value="{{ $p->id }}">{{ $p->name }}</option>
@@ -648,7 +705,8 @@
                             <label class="form-label fw-semibold text-dark small mb-1">Trạng thái</label>
                             <select name="status" id="edit_inv_status" class="form-select rounded-3 shadow-none" required>
                                 <option value="unpaid">⏳ Chưa thanh toán</option>
-                                <option value="paid">✅ Đã thanh toán</option>
+                                <option value="partial">🔄 Thanh toán 1 phần</option>
+                                <option value="paid">✅ Đã thanh toán đủ</option>
                                 <option value="cancelled">❌ Đã hủy</option>
                             </select>
                         </div>
@@ -677,8 +735,144 @@
     </div>
 </div>
 
+<!-- ========================================================================= -->
+<!-- MODAL XEM CHI TIẾT DOANH NGHIỆP -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalPartnerDetail" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header bg-white border-bottom py-3 px-4">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="navbar-brand-badge" style="width: 2.35rem; height: 2.35rem; font-size: 1.15rem;">
+                        <i class="bi bi-building"></i>
+                    </span>
+                    <div>
+                        <h6 class="modal-title fw-bold text-dark mb-0" id="detailPartnerName">Thông Tin Doanh Nghiệp</h6>
+                        <span class="badge bg-light text-secondary border rounded-pill mt-1" id="detailPartnerTypeBadge" style="font-size: 0.7rem;"></span>
+                    </div>
+                </div>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="p-3 rounded-4 mb-3" style="background-color: #f8fafc; border: 0.0625rem solid #e2e8f0;">
+                    <!-- Mã số thuế -->
+                    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                        <span class="text-muted small fw-medium">
+                            <i class="bi bi-file-earmark-medical text-primary me-1"></i> Mã số thuế (MST):
+                        </span>
+                        <span class="fw-bold text-dark font-monospace fs-6" id="detailPartnerTaxCode">---</span>
+                    </div>
+
+                    <!-- Mã doanh nghiệp -->
+                    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                        <span class="text-muted small fw-medium">
+                            <i class="bi bi-tag text-primary me-1"></i> Mã doanh nghiệp:
+                        </span>
+                        <span class="badge bg-light text-secondary border rounded-pill" id="detailPartnerCode">---</span>
+                    </div>
+
+                    <!-- Người đại diện -->
+                    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                        <span class="text-muted small fw-medium">
+                            <i class="bi bi-person-badge text-primary me-1"></i> Người đại diện:
+                        </span>
+                        <span class="fw-semibold text-dark" id="detailPartnerRepresentative">---</span>
+                    </div>
+
+                    <!-- Chức vụ -->
+                    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                        <span class="text-muted small fw-medium">
+                            <i class="bi bi-award text-primary me-1"></i> Chức vụ:
+                        </span>
+                        <span class="badge badge-soft-info py-1 px-2 rounded-pill" id="detailPartnerPosition">---</span>
+                    </div>
+
+                    <!-- Số điện thoại -->
+                    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                        <span class="text-muted small fw-medium">
+                            <i class="bi bi-telephone text-primary me-1"></i> Số điện thoại:
+                        </span>
+                        <span class="fw-bold text-primary font-monospace" id="detailPartnerPhone">---</span>
+                    </div>
+
+                    <!-- Email -->
+                    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                        <span class="text-muted small fw-medium">
+                            <i class="bi bi-envelope text-primary me-1"></i> Email:
+                        </span>
+                        <span class="text-dark small" id="detailPartnerEmail">---</span>
+                    </div>
+
+                    <!-- Địa chỉ -->
+                    <div class="pt-1">
+                        <span class="text-muted small fw-medium d-block mb-1">
+                            <i class="bi bi-geo-alt text-primary me-1"></i> Địa chỉ trụ sở:
+                        </span>
+                        <div class="text-dark small fw-medium ps-3 border-start border-2 border-primary" id="detailPartnerAddress">
+                            ---
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ghi chú nếu có -->
+                <div class="small text-muted fst-italic ps-1 d-none" id="detailPartnerNotesBox">
+                    <i class="bi bi-info-circle me-1"></i> <span id="detailPartnerNotes"></span>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top py-2 px-4 rounded-bottom-4 d-flex justify-content-between">
+                <a href="#" id="detailPartnerFilterLink" class="btn btn-soft-primary btn-sm rounded-pill px-3">
+                    <i class="bi bi-receipt me-1"></i> Lọc hóa đơn của DN này
+                </a>
+                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
+    function showPartnerDetail(partner) {
+        if (!partner) return;
+        const modal = new bootstrap.Modal(document.getElementById('modalPartnerDetail'));
+
+        document.getElementById('detailPartnerName').textContent = partner.name || 'Thông Tin Doanh Nghiệp';
+
+        const typeBadge = document.getElementById('detailPartnerTypeBadge');
+        if (partner.type === 'supplier') {
+            typeBadge.textContent = '📥 Nhà Cung Cấp';
+            typeBadge.className = 'badge badge-soft-warning py-1 px-2 rounded-pill mt-1';
+        } else if (partner.type === 'customer') {
+            typeBadge.textContent = '📤 Khách Hàng';
+            typeBadge.className = 'badge badge-soft-info py-1 px-2 rounded-pill mt-1';
+        } else {
+            typeBadge.textContent = '🔄 Đối Tác 2 Chiều';
+            typeBadge.className = 'badge badge-soft-success py-1 px-2 rounded-pill mt-1';
+        }
+
+        document.getElementById('detailPartnerTaxCode').textContent = partner.tax_code || 'Chưa cập nhật';
+        document.getElementById('detailPartnerCode').textContent = partner.code || '---';
+        document.getElementById('detailPartnerRepresentative').textContent = partner.representative || 'Chưa cập nhật';
+        document.getElementById('detailPartnerPosition').textContent = partner.position || 'Chưa cập nhật';
+        document.getElementById('detailPartnerPhone').textContent = partner.phone || 'Chưa cập nhật';
+        document.getElementById('detailPartnerEmail').textContent = partner.email || 'Chưa cập nhật';
+        document.getElementById('detailPartnerAddress').textContent = partner.address || 'Chưa cập nhật địa chỉ';
+
+        const notesBox = document.getElementById('detailPartnerNotesBox');
+        const notesEl = document.getElementById('detailPartnerNotes');
+        if (partner.notes) {
+            notesEl.textContent = partner.notes;
+            notesBox.classList.remove('d-none');
+        } else {
+            notesBox.classList.add('d-none');
+        }
+
+        const filterLink = document.getElementById('detailPartnerFilterLink');
+        if (filterLink) {
+            filterLink.href = `?partner_id=${partner.id}`;
+        }
+
+        modal.show();
+    }
     function calculateFlowInvoiceTotal() {
         const subtotal = parseFloat(document.getElementById('flow_subtotal').value) || 0;
         const rate = parseFloat(document.getElementById('flow_tax_rate').value) || 0;
@@ -687,6 +881,33 @@
 
         document.getElementById('flow_preview_tax').textContent = new Intl.NumberFormat('vi-VN').format(tax) + ' đ';
         document.getElementById('flow_preview_total').textContent = new Intl.NumberFormat('vi-VN').format(total) + ' đ';
+        updateCreatePaidState();
+    }
+
+    function updateCreatePaidState() {
+        const subtotal = parseFloat(document.getElementById('flow_subtotal').value) || 0;
+        const rate = parseFloat(document.getElementById('flow_tax_rate').value) || 0;
+        const total = subtotal + Math.round(subtotal * (rate / 100));
+        const paidInput = document.getElementById('flow_create_paid');
+        const paid = parseFloat(paidInput ? paidInput.value : 0) || 0;
+        const statusSelect = document.getElementById('flow_status_select');
+        const remainingEl = document.getElementById('flow_create_remaining');
+
+        const remaining = Math.max(0, total - paid);
+        if (remainingEl) {
+            remainingEl.textContent = new Intl.NumberFormat('vi-VN').format(remaining) + ' đ';
+            remainingEl.className = remaining > 0 ? 'text-danger font-monospace' : 'text-success font-monospace';
+        }
+
+        if (statusSelect) {
+            if (paid >= total && total > 0) {
+                statusSelect.value = 'paid';
+            } else if (paid > 0) {
+                statusSelect.value = 'partial';
+            } else {
+                statusSelect.value = 'unpaid';
+            }
+        }
     }
 
     const flowPartnerSelect = document.getElementById('flow_partner_select');
@@ -702,19 +923,51 @@
         });
     }
 
+    let currentInvoiceRemaining = 0;
+    let currentInvoiceTotal = 0;
+    let currentInvoicePaid = 0;
+
     function openInvoicePaymentModal(inv) {
         const modal = new bootstrap.Modal(document.getElementById('modalInvoicePayment'));
         const form = document.getElementById('invoicePaymentForm');
         form.action = `/invoices/${inv.id}/pay`;
 
+        currentInvoiceTotal = parseFloat(inv.total_amount) || 0;
+        currentInvoicePaid = parseFloat(inv.paid_amount) || 0;
+        currentInvoiceRemaining = Math.max(0, currentInvoiceTotal - currentInvoicePaid);
+
         document.getElementById('invPayNumber').textContent = inv.invoice_number;
         document.getElementById('invPayPartner').textContent = inv.partner ? inv.partner.name : '';
+        document.getElementById('invPayTotal').textContent = new Intl.NumberFormat('vi-VN').format(currentInvoiceTotal) + ' đ';
+        document.getElementById('invPayCurrentPaid').textContent = new Intl.NumberFormat('vi-VN').format(currentInvoicePaid) + ' đ';
+        document.getElementById('invPayRemaining').textContent = new Intl.NumberFormat('vi-VN').format(currentInvoiceRemaining) + ' đ';
 
-        const remaining = Math.max(0, parseFloat(inv.total_amount) - parseFloat(inv.paid_amount || 0));
-        document.getElementById('invPayRemaining').textContent = new Intl.NumberFormat('vi-VN').format(remaining) + ' đ';
-        document.getElementById('invPayInputAmount').value = remaining;
+        document.getElementById('invPayInputAmount').value = currentInvoiceRemaining;
+        previewPaymentRemaining();
 
         modal.show();
+    }
+
+    function previewPaymentRemaining() {
+        const amount = parseFloat(document.getElementById('invPayInputAmount').value) || 0;
+        const newRemaining = Math.max(0, currentInvoiceRemaining - amount);
+        const previewRemainingEl = document.getElementById('invPayPreviewRemaining');
+        const previewStatusEl = document.getElementById('invPayPreviewStatus');
+
+        previewRemainingEl.textContent = new Intl.NumberFormat('vi-VN').format(newRemaining) + ' đ';
+        if (newRemaining <= 0 && amount > 0) {
+            previewRemainingEl.className = 'fw-bold text-success font-monospace';
+            previewStatusEl.textContent = '✅ Đã thanh toán đủ 100%';
+            previewStatusEl.className = 'badge badge-soft-success py-1 px-2 rounded-pill';
+        } else if (amount > 0) {
+            previewRemainingEl.className = 'fw-bold text-danger font-monospace';
+            previewStatusEl.textContent = '🔄 Thanh toán 1 phần (Còn thiếu)';
+            previewStatusEl.className = 'badge badge-soft-warning py-1 px-2 rounded-pill';
+        } else {
+            previewRemainingEl.className = 'fw-bold text-danger font-monospace';
+            previewStatusEl.textContent = '⏳ Chưa thanh toán đợt này';
+            previewStatusEl.className = 'badge badge-soft-warning py-1 px-2 rounded-pill';
+        }
     }
 
     function openEditInvoiceModal(inv) {

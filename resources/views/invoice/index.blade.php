@@ -9,22 +9,24 @@
     <div class="card border-0 rounded-4 shadow-sm mb-4 bg-white" style="border: 0.0625rem solid var(--border-soft) !important;">
         <div class="card-body p-3 p-md-4">
             <form action="{{ route('invoice.index') }}" method="GET" class="row g-2 align-items-end">
-                <!-- Chọn công ty / đơn vị -->
-                <div class="col-12 col-md-4 col-lg-3">
-                    <label class="form-label text-muted small mb-1 fw-semibold">
-                        <i class="bi bi-building me-1 text-primary"></i> Đơn vị / Công ty:
-                    </label>
-                    <select name="company_id" class="form-select form-select-sm rounded-3 shadow-none" onchange="this.form.submit()">
-                        <option value="all" {{ ($companyId == 'all' || empty($companyId)) ? 'selected' : '' }}>
-                            🏢 Tất cả đơn vị ({{ $companies->count() }})
-                        </option>
-                        @foreach($companies as $comp)
-                            <option value="{{ $comp->id }}" {{ $companyId == $comp->id ? 'selected' : '' }}>
-                                {{ $comp->name }} {{ $comp->code ? '('.$comp->code.')' : '' }}
+                @if(Auth::check() && Auth::user()->isAdmin())
+                    <!-- Chọn công ty / đơn vị (Chỉ dành cho Quản trị viên) -->
+                    <div class="col-12 col-md-4 col-lg-3">
+                        <label class="form-label text-muted small mb-1 fw-semibold">
+                            <i class="bi bi-building me-1 text-primary"></i> Đơn vị / CTY:
+                        </label>
+                        <select name="company_id" class="form-select form-select-sm rounded-3 shadow-none" onchange="this.form.submit()">
+                            <option value="all" {{ ($companyId == 'all' || empty($companyId)) ? 'selected' : '' }}>
+                                🏢 Tất cả đơn vị ({{ $companies->count() }})
                             </option>
-                        @endforeach
-                    </select>
-                </div>
+                            @foreach($companies as $comp)
+                                <option value="{{ $comp->id }}" {{ $companyId == $comp->id ? 'selected' : '' }}>
+                                    {{ $comp->name }} {{ $comp->code ? '('.$comp->code.')' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
 
                 <!-- Lọc theo loại hóa đơn -->
                 <div class="col-6 col-md-4 col-lg-2">
@@ -46,6 +48,7 @@
                     <select name="status" class="form-select form-select-sm rounded-3 shadow-none" onchange="this.form.submit()">
                         <option value="all" {{ empty($status) || $status == 'all' ? 'selected' : '' }}>Tất cả trạng thái</option>
                         <option value="unpaid" {{ $status == 'unpaid' ? 'selected' : '' }}>⏳ Chưa thanh toán</option>
+                        <option value="partial" {{ $status == 'partial' ? 'selected' : '' }}>🔄 Thanh toán 1 phần</option>
                         <option value="paid" {{ $status == 'paid' ? 'selected' : '' }}>✅ Đã thanh toán</option>
                         <option value="cancelled" {{ $status == 'cancelled' ? 'selected' : '' }}>❌ Đã hủy</option>
                     </select>
@@ -199,8 +202,10 @@
                 <thead>
                     <tr>
                         <th style="width: 8rem;">Số Hóa Đơn</th>
-                        <th style="width: 11rem;">Đơn Vị Xuất/Nhận</th>
-                        <th style="width: 14rem;">Đối Tác / Khách Hàng</th>
+                        @if(Auth::check() && Auth::user()->isAdmin())
+                            <th style="width: 11rem;">CTY</th>
+                        @endif
+                        <th style="width: 14rem;">Doanh Nghiệp</th>
                         <th style="width: 8rem;">Phân Loại</th>
                         <th class="text-end" style="width: 8.5rem;">Tiền Trước Thuế</th>
                         <th class="text-center" style="width: 6rem;">Thuế VAT</th>
@@ -228,26 +233,33 @@
                                 @endif
                             </td>
 
-                            <!-- Đơn vị quản lý -->
-                            <td>
-                                <span class="fw-semibold text-dark d-block text-truncate" style="max-width: 10.5rem;" title="{{ $inv->company->name ?? '' }}">
-                                    {{ $inv->company->name ?? '---' }}
-                                </span>
-                                @if(!empty($inv->company->code))
-                                    <span class="badge bg-light text-secondary border rounded-pill" style="font-size: 0.68rem;">
-                                        {{ $inv->company->code }}
+                            <!-- Đơn vị quản lý (Chỉ hiển thị cho Quản trị viên) -->
+                            @if(Auth::check() && Auth::user()->isAdmin())
+                                <td>
+                                    <span class="fw-semibold text-dark d-block text-truncate" style="max-width: 10.5rem;" title="{{ $inv->company->name ?? '' }}">
+                                        {{ $inv->company->name ?? '---' }}
                                     </span>
-                                @endif
-                            </td>
+                                    @if(!empty($inv->company->code))
+                                        <span class="badge bg-light text-secondary border rounded-pill" style="font-size: 0.68rem;">
+                                            {{ $inv->company->code }}
+                                        </span>
+                                    @endif
+                                </td>
+                            @endif
 
-                            <!-- Đối tác & Diễn giải -->
+                            <!-- Doanh nghiệp -->
                             <td>
-                                <div class="fw-semibold text-dark text-truncate" style="max-width: 13rem;" title="{{ $inv->partner->name ?? '' }}">
-                                    {{ $inv->partner->name ?? '---' }}
-                                </div>
-                                <div class="text-muted small text-truncate" style="max-width: 13rem;" title="{{ $inv->title }}">
-                                    {{ $inv->title }}
-                                </div>
+                                @if($inv->partner)
+                                    <a href="javascript:void(0)" 
+                                       class="fw-semibold text-dark text-truncate d-inline-block text-decoration-none company-detail-link" 
+                                       style="max-width: 13rem;" 
+                                       title="Nhấn để xem thông tin doanh nghiệp"
+                                       onclick='showPartnerDetail(@json($inv->partner))'>
+                                        {{ $inv->partner->name }}
+                                    </a>
+                                @else
+                                    <span class="text-muted">---</span>
+                                @endif
                             </td>
 
                             <!-- Phân loại hóa đơn -->
@@ -297,22 +309,42 @@
 
                             <!-- Trạng thái & 1-click toggle -->
                             <td class="text-center">
-                                <form action="{{ route('invoice.toggle-status', $inv->id) }}" method="POST" class="d-inline">
-                                    @csrf
-                                    @if($inv->status === 'paid')
-                                        <button type="submit" class="badge badge-soft-success py-1 px-2 rounded-pill border-0 shadow-none" title="Bấm để đổi thành Chưa thanh toán">
+                                @php
+                                    $remaining = $inv->remaining_amount;
+                                @endphp
+                                @if($inv->status === 'paid' || $remaining <= 0)
+                                    <form action="{{ route('invoice.toggle-status', $inv->id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" class="badge badge-soft-success py-1 px-2 rounded-pill border-0 shadow-none text-nowrap" title="Bấm để đổi thành Chưa thanh toán">
                                             <i class="bi bi-check2-circle"></i> Đã thanh toán
                                         </button>
-                                    @elseif($inv->status === 'unpaid')
-                                        <button type="submit" class="badge badge-soft-warning py-1 px-2 rounded-pill border-0 shadow-none" title="Bấm để đánh dấu Đã thanh toán">
-                                            <i class="bi bi-hourglass-split"></i> Chưa thanh toán
-                                        </button>
-                                    @else
-                                        <span class="badge bg-secondary py-1 px-2 rounded-pill">
-                                            Đã hủy
+                                    </form>
+                                @elseif($inv->paid_amount > 0 && $remaining > 0)
+                                    <div class="d-inline-flex flex-column align-items-center">
+                                        <span class="badge py-1 px-2 rounded-pill border-0 shadow-none mb-1 text-nowrap" style="background-color: #fef3c7; color: #d97706; border: 0.0625rem solid #fde68a !important;">
+                                            <i class="bi bi-pie-chart-fill"></i> Thanh toán 1 phần
                                         </span>
-                                    @endif
-                                </form>
+                                        <span class="fw-bold font-monospace text-danger" style="font-size: 0.73rem;">
+                                            Thiếu: {{ number_format($remaining, 0, ',', '.') }} đ
+                                        </span>
+                                    </div>
+                                @elseif($inv->status === 'cancelled')
+                                    <span class="badge bg-secondary py-1 px-2 rounded-pill text-nowrap">
+                                        <i class="bi bi-x-circle"></i> Đã hủy
+                                    </span>
+                                @else
+                                    <div class="d-inline-flex flex-column align-items-center">
+                                        <form action="{{ route('invoice.toggle-status', $inv->id) }}" method="POST" class="d-inline">
+                                            @csrf
+                                            <button type="submit" class="badge badge-soft-warning py-1 px-2 rounded-pill border-0 shadow-none mb-1 text-nowrap" title="Bấm để đánh dấu Đã thanh toán">
+                                                <i class="bi bi-hourglass-split"></i> Chưa thanh toán
+                                            </button>
+                                        </form>
+                                        <span class="fw-bold font-monospace text-danger" style="font-size: 0.73rem;">
+                                            Thiếu: {{ number_format($remaining, 0, ',', '.') }} đ
+                                        </span>
+                                    </div>
+                                @endif
                             </td>
 
                             <!-- Thao tác -->
@@ -351,7 +383,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="10" class="text-center py-5 text-muted">
+                            <td colspan="{{ (Auth::check() && Auth::user()->isAdmin()) ? 10 : 9 }}" class="text-center py-5 text-muted">
                                 <div class="mb-2">
                                     <i class="bi bi-receipt fs-1 text-secondary opacity-50"></i>
                                 </div>
@@ -419,22 +451,26 @@
                             </div>
                         </div>
 
-                        <!-- Doanh nghiệp / Công ty quản lý -->
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold text-dark small mb-1">
-                                Thuộc Doanh nghiệp / Công ty <span class="text-danger">*</span>
-                            </label>
-                            <select name="company_id" class="form-select rounded-3 shadow-none" required>
-                                @foreach($companies as $comp)
-                                    <option value="{{ $comp->id }}" {{ $companyId == $comp->id ? 'selected' : '' }}>
-                                        {{ $comp->name }} {{ $comp->code ? '('.$comp->code.')' : '' }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                        <!-- CTY -->
+                        @if(Auth::check() && Auth::user()->isAdmin())
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold text-dark small mb-1">
+                                    Thuộc CTY <span class="text-danger">*</span>
+                                </label>
+                                <select name="company_id" class="form-select rounded-3 shadow-none" required>
+                                    @foreach($companies as $comp)
+                                        <option value="{{ $comp->id }}" {{ $companyId == $comp->id ? 'selected' : '' }}>
+                                            {{ $comp->name }} {{ $comp->code ? '('.$comp->code.')' : '' }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @else
+                            <input type="hidden" name="company_id" value="{{ Auth::user()->company_id }}">
+                        @endif
 
                         <!-- Đối tác / Khách hàng -->
-                        <div class="col-12 col-md-6">
+                        <div class="col-12 {{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-md-6' : 'col-md-12' }}">
                             <label class="form-label fw-semibold text-dark small mb-1">
                                 Đối tác / Khách hàng / NCC <span class="text-danger">*</span>
                             </label>
@@ -521,7 +557,8 @@
                             <label class="form-label fw-semibold text-dark small mb-1">Trạng thái thanh toán</label>
                             <select name="status" class="form-select rounded-3 shadow-none" required>
                                 <option value="unpaid">⏳ Chưa thanh toán</option>
-                                <option value="paid">✅ Đã thanh toán</option>
+                                <option value="partial">🔄 Thanh toán 1 phần</option>
+                                <option value="paid">✅ Đã thanh toán đủ</option>
                             </select>
                         </div>
 
@@ -578,15 +615,19 @@
                                 <option value="in">📥 Hóa Đơn Đầu Vào (Mua Hàng)</option>
                             </select>
                         </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold text-dark small mb-1">Thuộc Doanh nghiệp / Công ty</label>
-                            <select name="company_id" id="edit_inv_company_id" class="form-select rounded-3 shadow-none" required>
-                                @foreach($companies as $comp)
-                                    <option value="{{ $comp->id }}">{{ $comp->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-12 col-md-6">
+                        @if(Auth::check() && Auth::user()->isAdmin())
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold text-dark small mb-1">Thuộc CTY</label>
+                                <select name="company_id" id="edit_inv_company_id" class="form-select rounded-3 shadow-none" required>
+                                    @foreach($companies as $comp)
+                                        <option value="{{ $comp->id }}">{{ $comp->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @else
+                            <input type="hidden" name="company_id" id="edit_inv_company_id" value="{{ Auth::user()->company_id }}">
+                        @endif
+                        <div class="col-12 {{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-md-6' : 'col-md-12' }}">
                             <label class="form-label fw-semibold text-dark small mb-1">Đối tác / Khách hàng</label>
                             <select name="partner_id" id="edit_inv_partner_id" class="form-select rounded-3 shadow-none" required>
                                 @foreach($partners as $p)
@@ -626,6 +667,7 @@
                             <label class="form-label fw-semibold text-dark small mb-1">Trạng thái</label>
                             <select name="status" id="edit_inv_status" class="form-select rounded-3 shadow-none" required>
                                 <option value="unpaid">⏳ Chưa thanh toán</option>
+                                <option value="partial">🔄 Thanh toán 1 phần</option>
                                 <option value="paid">✅ Đã thanh toán</option>
                                 <option value="cancelled">❌ Đã hủy</option>
                             </select>
@@ -647,8 +689,144 @@
     </div>
 </div>
 
+<!-- ========================================================================= -->
+<!-- MODAL XEM CHI TIẾT DOANH NGHIỆP -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalPartnerDetail" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header bg-white border-bottom py-3 px-4">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="navbar-brand-badge" style="width: 2.35rem; height: 2.35rem; font-size: 1.15rem;">
+                        <i class="bi bi-building"></i>
+                    </span>
+                    <div>
+                        <h6 class="modal-title fw-bold text-dark mb-0" id="detailPartnerName">Thông Tin Doanh Nghiệp</h6>
+                        <span class="badge bg-light text-secondary border rounded-pill mt-1" id="detailPartnerTypeBadge" style="font-size: 0.7rem;"></span>
+                    </div>
+                </div>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="p-3 rounded-4 mb-3" style="background-color: #f8fafc; border: 0.0625rem solid #e2e8f0;">
+                    <!-- Mã số thuế -->
+                    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                        <span class="text-muted small fw-medium">
+                            <i class="bi bi-file-earmark-medical text-primary me-1"></i> Mã số thuế (MST):
+                        </span>
+                        <span class="fw-bold text-dark font-monospace fs-6" id="detailPartnerTaxCode">---</span>
+                    </div>
+
+                    <!-- Mã doanh nghiệp -->
+                    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                        <span class="text-muted small fw-medium">
+                            <i class="bi bi-tag text-primary me-1"></i> Mã doanh nghiệp:
+                        </span>
+                        <span class="badge bg-light text-secondary border rounded-pill" id="detailPartnerCode">---</span>
+                    </div>
+
+                    <!-- Người đại diện -->
+                    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                        <span class="text-muted small fw-medium">
+                            <i class="bi bi-person-badge text-primary me-1"></i> Người đại diện:
+                        </span>
+                        <span class="fw-semibold text-dark" id="detailPartnerRepresentative">---</span>
+                    </div>
+
+                    <!-- Chức vụ -->
+                    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                        <span class="text-muted small fw-medium">
+                            <i class="bi bi-award text-primary me-1"></i> Chức vụ:
+                        </span>
+                        <span class="badge badge-soft-info py-1 px-2 rounded-pill" id="detailPartnerPosition">---</span>
+                    </div>
+
+                    <!-- Số điện thoại -->
+                    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                        <span class="text-muted small fw-medium">
+                            <i class="bi bi-telephone text-primary me-1"></i> Số điện thoại:
+                        </span>
+                        <span class="fw-bold text-primary font-monospace" id="detailPartnerPhone">---</span>
+                    </div>
+
+                    <!-- Email -->
+                    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                        <span class="text-muted small fw-medium">
+                            <i class="bi bi-envelope text-primary me-1"></i> Email:
+                        </span>
+                        <span class="text-dark small" id="detailPartnerEmail">---</span>
+                    </div>
+
+                    <!-- Địa chỉ -->
+                    <div class="pt-1">
+                        <span class="text-muted small fw-medium d-block mb-1">
+                            <i class="bi bi-geo-alt text-primary me-1"></i> Địa chỉ trụ sở:
+                        </span>
+                        <div class="text-dark small fw-medium ps-3 border-start border-2 border-primary" id="detailPartnerAddress">
+                            ---
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ghi chú nếu có -->
+                <div class="small text-muted fst-italic ps-1 d-none" id="detailPartnerNotesBox">
+                    <i class="bi bi-info-circle me-1"></i> <span id="detailPartnerNotes"></span>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top py-2 px-4 rounded-bottom-4 d-flex justify-content-between">
+                <a href="#" id="detailPartnerFilterLink" class="btn btn-soft-primary btn-sm rounded-pill px-3">
+                    <i class="bi bi-receipt me-1"></i> Lọc hóa đơn của DN này
+                </a>
+                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
+    function showPartnerDetail(partner) {
+        if (!partner) return;
+        const modal = new bootstrap.Modal(document.getElementById('modalPartnerDetail'));
+
+        document.getElementById('detailPartnerName').textContent = partner.name || 'Thông Tin Doanh Nghiệp';
+
+        const typeBadge = document.getElementById('detailPartnerTypeBadge');
+        if (partner.type === 'supplier') {
+            typeBadge.textContent = '📥 Nhà Cung Cấp';
+            typeBadge.className = 'badge badge-soft-warning py-1 px-2 rounded-pill mt-1';
+        } else if (partner.type === 'customer') {
+            typeBadge.textContent = '📤 Khách Hàng';
+            typeBadge.className = 'badge badge-soft-info py-1 px-2 rounded-pill mt-1';
+        } else {
+            typeBadge.textContent = '🔄 Đối Tác 2 Chiều';
+            typeBadge.className = 'badge badge-soft-success py-1 px-2 rounded-pill mt-1';
+        }
+
+        document.getElementById('detailPartnerTaxCode').textContent = partner.tax_code || 'Chưa cập nhật';
+        document.getElementById('detailPartnerCode').textContent = partner.code || '---';
+        document.getElementById('detailPartnerRepresentative').textContent = partner.representative || 'Chưa cập nhật';
+        document.getElementById('detailPartnerPosition').textContent = partner.position || 'Chưa cập nhật';
+        document.getElementById('detailPartnerPhone').textContent = partner.phone || 'Chưa cập nhật';
+        document.getElementById('detailPartnerEmail').textContent = partner.email || 'Chưa cập nhật';
+        document.getElementById('detailPartnerAddress').textContent = partner.address || 'Chưa cập nhật địa chỉ';
+
+        const notesBox = document.getElementById('detailPartnerNotesBox');
+        const notesEl = document.getElementById('detailPartnerNotes');
+        if (partner.notes) {
+            notesEl.textContent = partner.notes;
+            notesBox.classList.remove('d-none');
+        } else {
+            notesBox.classList.add('d-none');
+        }
+
+        const filterLink = document.getElementById('detailPartnerFilterLink');
+        if (filterLink) {
+            filterLink.href = `?partner_id=${partner.id}`;
+        }
+
+        modal.show();
+    }
     // Tự động tính tiền thuế và tổng tiền hóa đơn
     function calculateInvoiceTotal() {
         const subtotal = parseFloat(document.getElementById('inv_subtotal').value) || 0;

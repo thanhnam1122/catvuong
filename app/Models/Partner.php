@@ -11,7 +11,11 @@ class Partner extends Model
     protected $fillable = [
         'company_id',
         'name',
+        'code',
+        'tax_code',
         'type', // customer, supplier, both
+        'representative',
+        'position',
         'phone',
         'email',
         'address',
@@ -26,5 +30,10 @@ class Partner extends Model
     public function debts(): HasMany
     {
         return $this->hasMany(Debt::class);
+    }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
     }
 }

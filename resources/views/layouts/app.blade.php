@@ -190,6 +190,15 @@
             color: #ffffff;
         }
 
+        .company-detail-link {
+            transition: color 0.15s ease, text-decoration 0.15s ease;
+        }
+        .company-detail-link:hover {
+            color: var(--blue-primary) !important;
+            text-decoration: underline !important;
+            cursor: pointer;
+        }
+
         /* In ấn */
         @media print {
             .app-navbar, .d-print-none, .btn, .modal-backdrop {
@@ -240,7 +249,7 @@
                     <li class="nav-item">
                         <a class="nav-link px-3 py-2 rounded-pill fw-medium d-flex align-items-center gap-1 {{ Request::routeIs('company.*') ? 'active bg-primary-subtle text-primary fw-bold' : 'text-secondary' }}" href="{{ route('company.index') }}">
                             <i class="bi bi-buildings"></i>
-                            <span>Doanh Nghiệp ({{ \App\Models\Company::count() }})</span>
+                            <span>Doanh Nghiệp ({{ (Auth::check() && !Auth::user()->isAdmin() && Auth::user()->company_id) ? \App\Models\Partner::where('company_id', Auth::user()->company_id)->count() : \App\Models\Partner::count() }})</span>
                         </a>
                     </li>
                 </ul>
@@ -268,6 +277,48 @@
                             <span>Vào Quản Lý Hóa Đơn</span>
                         </a>
                     @endif
+
+                    @auth
+                        <div class="dropdown ms-lg-2">
+                            <button class="btn btn-light btn-sm rounded-pill px-3 py-1 d-flex align-items-center gap-2 border shadow-none" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <span class="rounded-circle bg-primary-subtle text-primary fw-bold d-inline-flex align-items-center justify-content-center" style="width: 1.65rem; height: 1.65rem; font-size: 0.75rem;">
+                                    <i class="bi bi-person-fill"></i>
+                                </span>
+                                <span class="fw-semibold text-dark small d-none d-sm-inline">{{ Auth::user()->display_name }}</span>
+                                <i class="bi bi-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-4 p-2 mt-1" style="min-width: 15rem;">
+                                <li class="px-3 py-2 border-bottom mb-1">
+                                    <div class="fw-bold text-dark small d-flex align-items-center justify-content-between gap-2">
+                                        <span>{{ Auth::user()->display_name }}</span>
+                                        @if(Auth::user()->isAdmin())
+                                            <span class="badge bg-danger-subtle text-danger" style="font-size: 0.65rem;">Admin</span>
+                                        @else
+                                            <span class="badge bg-primary-subtle text-primary" style="font-size: 0.65rem;">CTY</span>
+                                        @endif
+                                    </div>
+                                    <div class="text-muted" style="font-size: 0.75rem;">Tài khoản: <strong>{{ Auth::user()->name }}</strong></div>
+                                </li>
+                                @if(Auth::user()->isAdmin())
+                                    <li>
+                                        <button type="button" class="dropdown-item small py-2 rounded-3 d-flex align-items-center gap-2 text-dark" data-bs-toggle="modal" data-bs-target="#modalManageUsers">
+                                            <i class="bi bi-people-fill text-primary"></i>
+                                            <span>Quản lý tài khoản CTY</span>
+                                        </button>
+                                    </li>
+                                    <li><hr class="dropdown-divider my-1"></li>
+                                @endif
+                                <li>
+                                    <form action="{{ route('logout') }}" method="POST">
+                                        @csrf
+                                        <button type="submit" class="dropdown-item small text-danger py-2 rounded-3 d-flex align-items-center gap-2">
+                                            <i class="bi bi-box-arrow-right"></i> Đăng xuất
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    @endauth
                 </div>
             </div>
         </div>
@@ -320,6 +371,143 @@
             </div>
         </div>
     </footer>
+
+    @auth
+        @if(Auth::user()->isAdmin())
+            @php
+                $systemCompanies = \App\Models\Company::orderBy('name')->get();
+                $systemUsers = \App\Models\User::with('company')->orderBy('id')->get();
+            @endphp
+            <!-- Modal Quản Lý Tài Khoản CTY -->
+            <div class="modal fade" id="modalManageUsers" tabindex="-1" aria-labelledby="modalManageUsersLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                    <div class="modal-content border-0 rounded-4 shadow">
+                        <div class="modal-header border-bottom py-3 px-4" style="background-color: var(--blue-soft-50);">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center" style="width: 2rem; height: 2rem; font-size: 0.9rem;">
+                                    <i class="bi bi-shield-lock-fill"></i>
+                                </span>
+                                <div>
+                                    <h5 class="modal-title fw-bold text-dark mb-0 fs-6" id="modalManageUsersLabel">Quản Lý Tài Khoản CTY</h5>
+                                    <div class="text-muted" style="font-size: 0.75rem;">Tạo và phân quyền tài khoản cho từng công ty</div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body p-4">
+                            <!-- Card Tạo Tài Khoản -->
+                            <div class="card border rounded-3 mb-4 shadow-none" style="background-color: #f8fafc; border-color: var(--border-soft) !important;">
+                                <div class="card-body p-3">
+                                    <h6 class="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
+                                        <i class="bi bi-person-plus-fill text-primary"></i>
+                                        <span>Tạo tài khoản mới cho CTY</span>
+                                    </h6>
+                                    <form action="{{ route('users.store') }}" method="POST">
+                                        @csrf
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-semibold text-dark mb-1">
+                                                    Tài khoản <span class="text-danger">*</span>
+                                                </label>
+                                                <input type="text" name="name" class="form-control form-control-sm rounded-3" placeholder="Ví dụ: cty_catvuong, cty_minhduc..." required autocomplete="off">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-semibold text-dark mb-1">
+                                                    Tên CTY <span class="text-danger">*</span>
+                                                </label>
+                                                <select name="company_id" class="form-select form-select-sm rounded-3" required>
+                                                    <option value="" disabled selected>-- Chọn công ty gán vào tài khoản --</option>
+                                                    @foreach($systemCompanies as $c)
+                                                        <option value="{{ $c->id }}">
+                                                            {{ $c->name }} ({{ $c->code ?: 'Chưa có MST' }})
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-semibold text-dark mb-1">
+                                                    Mật khẩu <span class="text-danger">*</span>
+                                                </label>
+                                                <input type="password" name="password" class="form-control form-control-sm rounded-3" placeholder="Nhập mật khẩu (tối thiểu 3 ký tự)..." required autocomplete="new-password">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-semibold text-dark mb-1">
+                                                    Xác nhận mật khẩu <span class="text-danger">*</span>
+                                                </label>
+                                                <input type="password" name="password_confirmation" class="form-control form-control-sm rounded-3" placeholder="Nhập lại mật khẩu..." required autocomplete="new-password">
+                                            </div>
+                                        </div>
+                                        <div class="mt-3 text-end">
+                                            <button type="submit" class="btn btn-theme-primary btn-sm rounded-pill px-3 py-1 shadow-sm">
+                                                <i class="bi bi-plus-circle me-1"></i> + Tạo Tài Khoản CTY
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <!-- Danh sách tài khoản hiện có -->
+                            <h6 class="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
+                                <i class="bi bi-list-check text-primary"></i>
+                                <span>Danh sách tài khoản hệ thống ({{ $systemUsers->count() }})</span>
+                            </h6>
+                            <div class="table-responsive rounded-3 border">
+                                <table class="table table-hover align-middle mb-0 text-nowrap" style="font-size: 0.85rem;">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Tài khoản</th>
+                                            <th>Vai trò / CTY</th>
+                                            <th>Ngày tạo</th>
+                                            <th class="text-end">Thao tác</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse($systemUsers as $u)
+                                            <tr>
+                                                <td>
+                                                    <span class="fw-bold text-dark">{{ $u->name }}</span>
+                                                    @if($u->id === Auth::id())
+                                                        <span class="badge bg-secondary-subtle text-secondary ms-1" style="font-size: 0.65rem;">Hiện tại</span>
+                                                    @endif
+                                                </td>
+                                                <td>
+                                                    @if($u->isAdmin())
+                                                        <span class="badge bg-danger-subtle text-danger fw-semibold px-2 py-1 rounded-pill">Quản trị viên</span>
+                                                    @else
+                                                        <span class="fw-semibold text-primary">{{ $u->company ? $u->company->name : 'Chưa gắn CTY' }}</span>
+                                                    @endif
+                                                </td>
+                                                <td class="text-muted" style="font-size: 0.78rem;">
+                                                    {{ $u->created_at ? $u->created_at->format('d/m/Y H:i') : '---' }}
+                                                </td>
+                                                <td class="text-end">
+                                                    @if(!$u->isAdmin() && $u->id !== Auth::id())
+                                                        <form action="{{ route('users.destroy', $u->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa tài khoản [{{ $u->name }}] không?');">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2 rounded-2" style="font-size: 0.75rem;" title="Xóa tài khoản">
+                                                                <i class="bi bi-trash"></i> Xóa
+                                                            </button>
+                                                        </form>
+                                                    @else
+                                                        <span class="text-muted small" style="font-size: 0.75rem;">Mặc định</span>
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="4" class="text-center text-muted py-3">Chưa có tài khoản nào.</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+    @endauth
 
     <!-- Bootstrap 5 Bundle JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\Debt;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class InvoiceController extends Controller
 {
@@ -33,11 +34,21 @@ class InvoiceController extends Controller
      */
     private function renderFlow(Request $request, string $flow)
     {
-        $companyId = $request->get('company_id');
+        $currentUser = Auth::user();
+        $isCompanyUser = $currentUser && !$currentUser->isAdmin();
+
+        if ($isCompanyUser) {
+            $companyId = $currentUser->company_id;
+            $companies = Company::where('id', $companyId)->get();
+        } else {
+            $companyId = $request->get('company_id');
+            $companies = Company::orderBy('name')->get();
+        }
+
+        $partnerId = $request->get('partner_id');
         $status = $request->get('status'); // unpaid, paid, all
         $search = $request->get('search');
 
-        $companies = Company::orderBy('name')->get();
         $partners = Partner::orderBy('name')->get();
 
         $query = Invoice::with(['company', 'partner', 'debt'])
@@ -47,7 +58,11 @@ class InvoiceController extends Controller
             $query->where('company_id', $companyId);
         }
 
-        if ($status && in_array($status, ['unpaid', 'paid', 'cancelled'])) {
+        if ($partnerId && $partnerId !== 'all') {
+            $query->where('partner_id', $partnerId);
+        }
+
+        if ($status && in_array($status, ['unpaid', 'partial', 'paid', 'cancelled'])) {
             $query->where('status', $status);
         }
 
@@ -64,17 +79,20 @@ class InvoiceController extends Controller
 
         $invoices = $query->orderBy('issue_date', 'desc')->paginate(20)->withQueryString();
 
-        // Thống kê riêng cho luồng này theo công ty đang lọc
+        // Thống kê riêng cho luồng này theo bộ lọc
         $statsQuery = Invoice::where('type', $flow);
         if ($companyId && $companyId !== 'all') {
             $statsQuery->where('company_id', $companyId);
+        }
+        if ($partnerId && $partnerId !== 'all') {
+            $statsQuery->where('partner_id', $partnerId);
         }
 
         $totalAmount = (clone $statsQuery)->sum('total_amount');
         $totalPaid = (clone $statsQuery)->sum('paid_amount');
         $totalUnpaid = max(0, $totalAmount - $totalPaid);
         $totalTax = (clone $statsQuery)->sum('tax_amount');
-        $unpaidCount = (clone $statsQuery)->where('status', 'unpaid')->count();
+        $unpaidCount = (clone $statsQuery)->whereIn('status', ['unpaid', 'partial'])->count();
 
         return view('invoice.flow', compact(
             'flow',
@@ -82,6 +100,7 @@ class InvoiceController extends Controller
             'partners',
             'invoices',
             'companyId',
+            'partnerId',
             'status',
             'search',
             'totalAmount',
@@ -106,10 +125,15 @@ class InvoiceController extends Controller
             'paid_amount' => 'nullable|numeric|min:0',
             'issue_date' => 'required|date',
             'due_date' => 'nullable|date',
-            'status' => 'required|in:unpaid,paid,cancelled',
+            'status' => 'nullable|in:unpaid,partial,paid,cancelled',
             'notes' => 'nullable|string',
             'sync_debt' => 'nullable|boolean',
         ]);
+
+        $currentUser = Auth::user();
+        if ($currentUser && !$currentUser->isAdmin()) {
+            $validated['company_id'] = $currentUser->company_id;
+        }
 
         // Tạo đối tác mới nhanh nếu có
         if (empty($validated['partner_id']) && !empty($validated['new_partner_name'])) {
@@ -141,11 +165,18 @@ class InvoiceController extends Controller
         $totalAmount = $subtotal + $taxAmount;
 
         $paidAmount = (float)($validated['paid_amount'] ?? 0);
-        $status = $validated['status'];
-        if ($status === 'paid' && $paidAmount < $totalAmount) {
-            $paidAmount = $totalAmount;
+        $reqStatus = $validated['status'] ?? 'unpaid';
+
+        if ($reqStatus === 'cancelled') {
+            $status = 'cancelled';
         } elseif ($paidAmount >= $totalAmount && $totalAmount > 0) {
             $status = 'paid';
+            $paidAmount = $totalAmount;
+        } elseif ($paidAmount > 0) {
+            $status = 'partial';
+        } else {
+            $status = 'unpaid';
+            $paidAmount = 0;
         }
 
         $debtId = null;
@@ -221,7 +252,7 @@ class InvoiceController extends Controller
             'paid_amount' => 'nullable|numeric|min:0',
             'issue_date' => 'required|date',
             'due_date' => 'nullable|date',
-            'status' => 'required|in:unpaid,paid,cancelled',
+            'status' => 'nullable|in:unpaid,partial,paid,cancelled',
             'notes' => 'nullable|string',
         ]);
 
@@ -230,12 +261,19 @@ class InvoiceController extends Controller
         $taxAmount = round($subtotal * ($taxRate / 100), 2);
         $totalAmount = $subtotal + $taxAmount;
 
-        $paidAmount = (float)($validated['paid_amount'] ?? $invoice->paid_amount);
-        $status = $validated['status'];
-        if ($status === 'paid') {
-            $paidAmount = $totalAmount;
+        $paidAmount = isset($validated['paid_amount']) ? (float)$validated['paid_amount'] : (float)$invoice->paid_amount;
+        $reqStatus = $validated['status'] ?? $invoice->status;
+
+        if ($reqStatus === 'cancelled') {
+            $status = 'cancelled';
         } elseif ($paidAmount >= $totalAmount && $totalAmount > 0) {
             $status = 'paid';
+            $paidAmount = $totalAmount;
+        } elseif ($paidAmount > 0) {
+            $status = 'partial';
+        } else {
+            $status = 'unpaid';
+            $paidAmount = 0;
         }
 
         $invoice->update([
@@ -288,12 +326,17 @@ class InvoiceController extends Controller
 
         $paymentAmount = (float)$validated['amount'];
         $newPaidAmount = (float)$invoice->paid_amount + $paymentAmount;
+        $totalAmount = (float)$invoice->total_amount;
 
-        if ($newPaidAmount >= (float)$invoice->total_amount) {
-            $invoice->paid_amount = (float)$invoice->total_amount;
+        if ($newPaidAmount >= $totalAmount) {
+            $invoice->paid_amount = $totalAmount;
             $invoice->status = 'paid';
-        } else {
+        } elseif ($newPaidAmount > 0) {
             $invoice->paid_amount = $newPaidAmount;
+            $invoice->status = 'partial';
+        } else {
+            $invoice->paid_amount = 0;
+            $invoice->status = 'unpaid';
         }
         $invoice->save();
 
@@ -302,7 +345,10 @@ class InvoiceController extends Controller
             $invoice->debt->updateStatusAutomatically();
         }
 
-        return redirect()->back()->with('success', "Đã ghi nhận thanh toán " . number_format($paymentAmount) . " đ cho hóa đơn {$invoice->invoice_number}!");
+        $remaining = max(0, $totalAmount - $invoice->paid_amount);
+        $statusText = $invoice->status === 'paid' ? 'Đã thanh toán đủ' : 'Thanh toán 1 phần (Còn thiếu ' . number_format($remaining, 0, ',', '.') . ' đ)';
+
+        return redirect()->back()->with('success', "Đã ghi nhận thanh toán " . number_format($paymentAmount, 0, ',', '.') . " đ cho hóa đơn {$invoice->invoice_number}! Trạng thái: {$statusText}.");
     }
 
     public function toggleStatus($id)

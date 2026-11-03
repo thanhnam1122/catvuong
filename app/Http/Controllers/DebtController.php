@@ -295,7 +295,11 @@ class DebtController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'company_id' => 'nullable|exists:companies,id',
+            'tax_code' => 'nullable|string|max:50',
+            'code' => 'nullable|string|max:50',
             'type' => 'required|in:customer,supplier,both',
+            'representative' => 'nullable|string|max:100',
+            'position' => 'nullable|string|max:100',
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:100',
             'address' => 'nullable|string|max:255',

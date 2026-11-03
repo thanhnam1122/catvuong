@@ -4,19 +4,189 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Company;
+use App\Models\Partner;
+use Illuminate\Support\Facades\Auth;
 
 class CompanyController extends Controller
 {
-    public function index()
+    /**
+     * Quản lý Doanh nghiệp (Nhà Cung Cấp / Đối Tác)
+     */
+    public function index(Request $request)
     {
-        $companies = Company::withCount(['partners', 'debts', 'invoices'])
+        $type = $request->get('type', 'all'); // all, supplier, customer, both
+        $search = $request->get('search');
+        $companyId = $request->get('company_id', 'all');
+
+        $user = Auth::user();
+        $isAdmin = $user ? $user->isAdmin() : true;
+
+        $query = Partner::withCount(['invoices', 'debts'])->with('company');
+
+        // Phân quyền dữ liệu theo vai trò tài khoản:
+        // Tài khoản CTY: chỉ hiển thị doanh nghiệp do chính CTY đó nhập vào
+        if (!$isAdmin && $user && $user->company_id) {
+            $companyId = $user->company_id;
+            $query->where('company_id', $user->company_id);
+        } else {
+            // Tài khoản Admin: hiển thị full và có bộ lọc theo từng CTY
+            if ($companyId && $companyId !== 'all') {
+                $query->where('company_id', $companyId);
+            }
+        }
+
+        if ($type && in_array($type, ['supplier', 'customer', 'both'])) {
+            $query->where('type', $type);
+        }
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('tax_code', 'like', "%{$search}%")
+                  ->orWhere('code', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhere('representative', 'like', "%{$search}%")
+                  ->orWhere('address', 'like', "%{$search}%");
+            });
+        }
+
+        $partners = $query->orderBy('name')->get();
+
+        // Danh sách CTY của tôi
+        $myCompanies = Company::withCount(['partners', 'debts', 'invoices'])
             ->orderBy('name')
             ->get();
 
-        return view('company.index', compact('companies'));
+        // Thống kê nhanh theo phạm vi quyền hạn / bộ lọc
+        $statsBase = Partner::query();
+        if (!$isAdmin && $user && $user->company_id) {
+            $statsBase->where('company_id', $user->company_id);
+        } elseif ($companyId && $companyId !== 'all') {
+            $statsBase->where('company_id', $companyId);
+        }
+
+        $totalPartners = (clone $statsBase)->count();
+        $supplierCount = (clone $statsBase)->where('type', 'supplier')->count();
+        $customerCount = (clone $statsBase)->where('type', 'customer')->count();
+        $bothCount     = (clone $statsBase)->where('type', 'both')->count();
+
+        // Biến alias cho tương thích
+        $companies = $partners;
+
+        return view('company.index', compact(
+            'partners',
+            'companies',
+            'myCompanies',
+            'type',
+            'search',
+            'companyId',
+            'totalPartners',
+            'supplierCount',
+            'customerCount',
+            'bothCount'
+        ));
     }
 
+    /**
+     * Thêm Doanh nghiệp / Đối tác mới
+     */
     public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'tax_code' => 'nullable|string|max:50',
+            'code' => 'nullable|string|max:50',
+            'type' => 'nullable|in:supplier,customer,both',
+            'phone' => 'nullable|string|max:50',
+            'email' => 'nullable|email|max:100',
+            'representative' => 'nullable|string|max:100',
+            'position' => 'nullable|string|max:100',
+            'address' => 'nullable|string|max:255',
+            'notes' => 'nullable|string',
+            'company_id' => 'nullable|exists:companies,id',
+        ]);
+
+        if (empty($validated['type'])) {
+            $validated['type'] = 'both';
+        }
+
+        // Tài khoản CTY chỉ được lưu vào chính CTY của mình
+        $user = Auth::user();
+        if ($user && !$user->isAdmin() && $user->company_id) {
+            $validated['company_id'] = $user->company_id;
+        }
+
+        $partner = Partner::create($validated);
+
+        return redirect()->back()->with('success', "Đã thêm doanh nghiệp [{$partner->name}] thành công!");
+    }
+
+    /**
+     * Cập nhật thông tin Doanh nghiệp / Đối tác
+     */
+    public function update(Request $request, $id)
+    {
+        $partner = Partner::findOrFail($id);
+
+        $user = Auth::user();
+        if ($user && !$user->isAdmin() && $user->company_id) {
+            if ($partner->company_id != $user->company_id) {
+                abort(403, 'Bạn không có quyền chỉnh sửa doanh nghiệp này.');
+            }
+            $validated['company_id'] = $user->company_id;
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'tax_code' => 'nullable|string|max:50',
+            'code' => 'nullable|string|max:50',
+            'type' => 'nullable|in:supplier,customer,both',
+            'phone' => 'nullable|string|max:50',
+            'email' => 'nullable|email|max:100',
+            'representative' => 'nullable|string|max:100',
+            'position' => 'nullable|string|max:100',
+            'address' => 'nullable|string|max:255',
+            'notes' => 'nullable|string',
+            'company_id' => 'nullable|exists:companies,id',
+        ]);
+
+        if (empty($validated['type'])) {
+            $validated['type'] = 'both';
+        }
+
+        if ($user && !$user->isAdmin() && $user->company_id) {
+            $validated['company_id'] = $user->company_id;
+        }
+
+        $partner->update($validated);
+
+        return redirect()->back()->with('success', "Cập nhật doanh nghiệp [{$partner->name}] thành công!");
+    }
+
+    /**
+     * Xóa Doanh nghiệp / Đối tác
+     */
+    public function destroy($id)
+    {
+        $partner = Partner::findOrFail($id);
+
+        $user = Auth::user();
+        if ($user && !$user->isAdmin() && $user->company_id) {
+            if ($partner->company_id != $user->company_id) {
+                abort(403, 'Bạn không có quyền xóa doanh nghiệp này.');
+            }
+        }
+
+        $name = $partner->name;
+        $partner->delete();
+
+        return redirect()->back()->with('success', "Đã xóa doanh nghiệp [{$name}]!");
+    }
+
+    /**
+     * Thêm CTY của tôi
+     */
+    public function storeMyCompany(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -31,10 +201,13 @@ class CompanyController extends Controller
 
         Company::create($validated);
 
-        return redirect()->back()->with('success', "Đã thêm doanh nghiệp [{$validated['name']}] thành công!");
+        return redirect()->back()->with('success', "Đã thêm CTY [{$validated['name']}] thành công!");
     }
 
-    public function update(Request $request, $id)
+    /**
+     * Cập nhật CTY của tôi
+     */
+    public function updateMyCompany(Request $request, $id)
     {
         $company = Company::findOrFail($id);
 
@@ -51,15 +224,18 @@ class CompanyController extends Controller
 
         $company->update($validated);
 
-        return redirect()->back()->with('success', "Cập nhật thông tin doanh nghiệp [{$company->name}] thành công!");
+        return redirect()->back()->with('success', "Cập nhật CTY [{$company->name}] thành công!");
     }
 
-    public function destroy($id)
+    /**
+     * Xóa CTY của tôi
+     */
+    public function destroyMyCompany($id)
     {
         $company = Company::findOrFail($id);
         $name = $company->name;
         $company->delete();
 
-        return redirect()->back()->with('success', "Đã xóa doanh nghiệp [{$name}]!");
+        return redirect()->back()->with('success', "Đã xóa CTY [{$name}]!");
     }
 }
