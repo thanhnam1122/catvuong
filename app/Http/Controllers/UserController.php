@@ -45,10 +45,15 @@ class UserController extends Controller
             $generatedEmail = $safeUsername . '_' . rand(100, 999) . '@' . $companySuffix . '.local';
         }
 
+        $hashedPassword = @password_hash($validated['password'], PASSWORD_DEFAULT);
+        if (!$hashedPassword) {
+            $hashedPassword = Hash::make($validated['password']);
+        }
+
         User::create([
             'name' => trim($validated['name']),
             'email' => $generatedEmail,
-            'password' => Hash::make($validated['password']),
+            'password' => $hashedPassword,
             'role' => 'company',
             'company_id' => $company->id,
         ]);

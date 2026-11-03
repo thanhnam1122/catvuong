@@ -43,25 +43,32 @@ class AuthController extends Controller
         $input = trim($credentials['email']);
         $password = $credentials['password'];
 
-        // Hỗ trợ đăng nhập linh hoạt bằng tài khoản "admin" hoặc email
-        $attemptSuccess = false;
-        if (filter_var($input, FILTER_VALIDATE_EMAIL)) {
-            $attemptSuccess = Auth::attempt(['email' => $input, 'password' => $password], $remember);
-        } else {
-            $attemptSuccess = Auth::attempt(['name' => $input, 'password' => $password], $remember);
-            if (!$attemptSuccess) {
-                $user = User::where('name', $input)->orWhere('email', 'like', $input . '@%')->first();
-                if ($user && Hash::check($password, $user->password)) {
-                    Auth::login($user, $remember);
-                    $attemptSuccess = true;
+        // Tìm tài khoản theo username hoặc email
+        $user = User::where('name', $input)
+            ->orWhere('email', $input)
+            ->orWhere('email', 'like', $input . '@%')
+            ->first();
+
+        if ($user) {
+            $isPasswordValid = false;
+
+            // Kiểm tra mật khẩu an toàn tương thích đa môi trường
+            if (password_verify($password, $user->password)) {
+                $isPasswordValid = true;
+            } else {
+                try {
+                    $isPasswordValid = Hash::check($password, $user->password);
+                } catch (\Throwable $e) {
+                    $isPasswordValid = false;
                 }
             }
-        }
 
-        if ($attemptSuccess) {
-            $request->session()->regenerate();
+            if ($isPasswordValid) {
+                Auth::login($user, $remember);
+                $request->session()->regenerate();
 
-            return redirect()->intended(route('invoice.in'))->with('success', 'Chào mừng bạn quay trở lại!');
+                return redirect()->intended(route('invoice.in'))->with('success', 'Chào mừng bạn quay trở lại!');
+            }
         }
 
         return back()->withErrors([
