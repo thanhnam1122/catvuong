@@ -59,6 +59,9 @@ return VercelApplication::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
+        $middleware->validateCsrfTokens(except: [
+            '/login',
+        ]);
         $middleware->redirectTo(
             guests: '/login',
             users: '/hoa-don-dau-vao'
