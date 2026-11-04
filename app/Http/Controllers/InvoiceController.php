@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Company;
 use App\Models\Partner;
 use App\Models\Invoice;
+use App\Models\InvoiceAttachment;
 use App\Models\Debt;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -50,8 +51,10 @@ class InvoiceController extends Controller
         $partnerId = $request->get('partner_id');
         $status = $request->get('status'); // unpaid, paid, all
         $search = $request->get('search');
+        $concern = $request->get('concern'); // all, 1 (quan tâm), 0 (không quan tâm)
 
-        $query = Invoice::with(['company', 'partner', 'debt'])
+        $query = Invoice::with(['company', 'partner', 'debt', 'attachments'])
+            ->withCount('attachments')
             ->where('type', $flow);
 
         if ($companyId && $companyId !== 'all') {
@@ -64,6 +67,10 @@ class InvoiceController extends Controller
 
         if ($status && in_array($status, ['unpaid', 'partial', 'paid', 'cancelled'])) {
             $query->where('status', $status);
+        }
+
+        if ($concern !== null && $concern !== '' && $concern !== 'all') {
+            $query->where('is_concerned', (bool)$concern);
         }
 
         if ($search) {
@@ -88,6 +95,13 @@ class InvoiceController extends Controller
             $statsQuery->where('partner_id', $partnerId);
         }
 
+        $concernedCount = (clone $statsQuery)->where('is_concerned', true)->count();
+        $unconcernedCount = (clone $statsQuery)->where('is_concerned', false)->count();
+
+        if ($concern !== null && $concern !== '' && $concern !== 'all') {
+            $statsQuery->where('is_concerned', (bool)$concern);
+        }
+
         $totalAmount = (clone $statsQuery)->sum('total_amount');
         $totalPaid = (clone $statsQuery)->sum('paid_amount');
         $totalUnpaid = max(0, $totalAmount - $totalPaid);
@@ -102,6 +116,9 @@ class InvoiceController extends Controller
             'companyId',
             'partnerId',
             'status',
+            'concern',
+            'concernedCount',
+            'unconcernedCount',
             'search',
             'totalAmount',
             'totalPaid',
@@ -125,6 +142,7 @@ class InvoiceController extends Controller
             'partner_id' => 'nullable',
             'new_partner_name' => 'nullable|string|max:255',
             'type' => 'required|in:out,in',
+            'is_concerned' => 'nullable',
             'invoice_number' => 'nullable|string|max:50',
             'title' => 'required|string|max:255',
             'subtotal' => 'required|numeric|min:0',
@@ -188,10 +206,13 @@ class InvoiceController extends Controller
 
         $debtId = null;
 
+        $isConcerned = $request->has('is_concerned') ? (bool)$request->input('is_concerned') : true;
+
         DB::transaction(function () use (
             $validated,
             $invoiceNumber,
             $partnerId,
+            $isConcerned,
             $subtotal,
             $taxRate,
             $taxAmount,
@@ -227,6 +248,7 @@ class InvoiceController extends Controller
                 'partner_id' => $partnerId,
                 'debt_id' => $debtId,
                 'type' => $validated['type'],
+                'is_concerned' => $isConcerned,
                 'title' => $validated['title'],
                 'subtotal' => $subtotal,
                 'tax_rate' => $taxRate,
@@ -259,6 +281,7 @@ class InvoiceController extends Controller
             'company_id' => 'required|exists:companies,id',
             'partner_id' => 'required|exists:partners,id',
             'type' => 'required|in:out,in',
+            'is_concerned' => 'nullable',
             'invoice_number' => 'required|string|max:50',
             'title' => 'required|string|max:255',
             'subtotal' => 'required|numeric|min:0',
@@ -294,6 +317,7 @@ class InvoiceController extends Controller
             'company_id' => $validated['company_id'],
             'partner_id' => $validated['partner_id'],
             'type' => $validated['type'],
+            'is_concerned' => $request->has('is_concerned') ? (bool)$request->input('is_concerned') : $invoice->is_concerned,
             'invoice_number' => $validated['invoice_number'],
             'title' => $validated['title'],
             'subtotal' => $subtotal,
@@ -389,9 +413,242 @@ class InvoiceController extends Controller
         return redirect()->back()->with('success', "Đã cập nhật trạng thái hóa đơn {$invoice->invoice_number} sang: " . ($invoice->status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán'));
     }
 
+    /**
+     * Chuyển đổi nhanh phân loại Quan tâm / Không quan tâm
+     */
+    public function toggleConcern(Request $request, $id)
+    {
+        $invoice = Invoice::findOrFail($id);
+
+        $currentUser = Auth::user();
+        if ($currentUser && !$currentUser->isAdmin()) {
+            if ($invoice->company_id != $currentUser->company_id) {
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['error' => 'Bạn không có quyền thao tác trên hóa đơn này.'], 403);
+                }
+                abort(403, 'Bạn không có quyền thao tác.');
+            }
+        }
+
+        $invoice->is_concerned = !$invoice->is_concerned;
+        $invoice->save();
+
+        $statusLabel = $invoice->is_concerned ? 'Quan tâm' : 'Không quan tâm';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'is_concerned' => $invoice->is_concerned,
+                'label' => $statusLabel,
+                'message' => "Đã chuyển phân loại hóa đơn [{$invoice->invoice_number}] thành: {$statusLabel}",
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Đã chuyển phân loại hóa đơn [{$invoice->invoice_number}] thành: {$statusLabel}");
+    }
+
     public function print($id)
     {
         $invoice = Invoice::with(['company', 'partner'])->findOrFail($id);
         return view('invoice.print', compact('invoice'));
+    }
+
+    /**
+     * Lấy danh sách file đính kèm của hóa đơn (AJAX/API)
+     */
+    public function getAttachments($id)
+    {
+        $invoice = Invoice::with('attachments')->findOrFail($id);
+
+        $currentUser = Auth::user();
+        if ($currentUser && !$currentUser->isAdmin()) {
+            if ($invoice->company_id != $currentUser->company_id) {
+                return response()->json(['error' => 'Bạn không có quyền truy cập hóa đơn này.'], 403);
+            }
+        }
+
+        $attachments = $invoice->attachments->map(function ($att) {
+            return [
+                'id' => $att->id,
+                'category' => $att->category,
+                'category_label' => $att->category_label,
+                'category_badge' => $att->category_short_badge,
+                'file_name' => $att->file_name,
+                'file_size' => $att->formatted_size,
+                'mime_type' => $att->mime_type,
+                'is_image' => $att->is_image,
+                'is_pdf' => $att->is_pdf,
+                'notes' => $att->notes,
+                'uploaded_by' => $att->uploaded_by,
+                'created_at' => $att->created_at ? $att->created_at->format('d/m/Y H:i') : '',
+                'view_url' => route('invoice.attachments.view', $att->id),
+                'download_url' => route('invoice.attachments.download', $att->id),
+            ];
+        });
+
+        return response()->json([
+            'invoice' => [
+                'id' => $invoice->id,
+                'invoice_number' => $invoice->invoice_number,
+                'title' => $invoice->title,
+                'total_amount' => number_format((float)$invoice->total_amount, 0, ',', '.') . ' đ',
+                'partner_name' => $invoice->partner ? $invoice->partner->name : '---',
+            ],
+            'attachments' => $attachments,
+            'count' => $attachments->count(),
+        ]);
+    }
+
+    /**
+     * Tải file đính kèm lên hóa đơn (HĐ, BG, HS liên quan, Hóa đơn)
+     */
+    public function uploadAttachments(Request $request, $id)
+    {
+        $invoice = Invoice::findOrFail($id);
+
+        $currentUser = Auth::user();
+        if ($currentUser && !$currentUser->isAdmin()) {
+            if ($invoice->company_id != $currentUser->company_id) {
+                return response()->json(['error' => 'Bạn không có quyền thực hiện thao tác này.'], 403);
+            }
+        }
+
+        $validated = $request->validate([
+            'category' => 'required|in:invoice,contract,quote,doc,unc',
+            'files' => 'required|array|min:1',
+            'files.*' => 'required|file|max:20480', // tối đa 20MB / file
+            'notes' => 'nullable|string|max:255',
+        ], [
+            'category.required' => 'Vui lòng chọn phân loại tài liệu (HĐ, BG, HS liên quan, Hóa đơn, Ủy nhiệm chi).',
+            'files.required' => 'Vui lòng chọn ít nhất 1 file đính kèm.',
+            'files.*.max' => 'File tải lên không được vượt quá 20MB.',
+        ]);
+
+        $uploadedCount = 0;
+        $category = $validated['category'];
+        $notes = $validated['notes'] ?? null;
+        $userName = $currentUser ? $currentUser->name : 'Người dùng';
+
+        foreach ($request->file('files') as $file) {
+            $fileName = $file->getClientOriginalName();
+            $mimeType = $file->getClientMimeType();
+            $fileSize = $file->getSize();
+
+            // Mã hóa base64 để lưu trực tiếp trong PostgreSQL (đảm bảo vĩnh viễn trên cả Vercel và máy cục bộ)
+            $fileData = base64_encode(file_get_contents($file->getRealPath()));
+
+            InvoiceAttachment::create([
+                'invoice_id' => $invoice->id,
+                'category' => $category,
+                'file_name' => $fileName,
+                'mime_type' => $mimeType,
+                'file_size' => $fileSize,
+                'file_data' => $fileData,
+                'notes' => $notes,
+                'uploaded_by' => $userName,
+            ]);
+
+            $uploadedCount++;
+        }
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Đã đính kèm thành công {$uploadedCount} file vào hóa đơn {$invoice->invoice_number}!",
+                'count' => $invoice->attachments()->count(),
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Đã đính kèm thành công {$uploadedCount} file vào hóa đơn {$invoice->invoice_number}!");
+    }
+
+    /**
+     * Xem trực tiếp file đính kèm (Ảnh / PDF)
+     */
+    public function viewAttachment($id)
+    {
+        $attachment = InvoiceAttachment::with('invoice')->findOrFail($id);
+
+        $currentUser = Auth::user();
+        if ($currentUser && !$currentUser->isAdmin()) {
+            if ($attachment->invoice && $attachment->invoice->company_id != $currentUser->company_id) {
+                abort(403, 'Bạn không có quyền xem file này.');
+            }
+        }
+
+        if (empty($attachment->file_data)) {
+            abort(404, 'Dữ liệu file không tồn tại.');
+        }
+
+        $binary = base64_decode($attachment->file_data);
+        $mime = $attachment->mime_type ?: 'application/octet-stream';
+        $safeFilename = str_replace('"', '', $attachment->file_name);
+
+        return response($binary, 200, [
+            'Content-Type' => $mime,
+            'Content-Disposition' => 'inline; filename="' . rawurlencode($safeFilename) . '"',
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
+    }
+
+    /**
+     * Tải file đính kèm về máy
+     */
+    public function downloadAttachment($id)
+    {
+        $attachment = InvoiceAttachment::with('invoice')->findOrFail($id);
+
+        $currentUser = Auth::user();
+        if ($currentUser && !$currentUser->isAdmin()) {
+            if ($attachment->invoice && $attachment->invoice->company_id != $currentUser->company_id) {
+                abort(403, 'Bạn không có quyền tải file này.');
+            }
+        }
+
+        if (empty($attachment->file_data)) {
+            abort(404, 'Dữ liệu file không tồn tại.');
+        }
+
+        $binary = base64_decode($attachment->file_data);
+        $mime = $attachment->mime_type ?: 'application/octet-stream';
+        $safeFilename = str_replace('"', '', $attachment->file_name);
+
+        return response($binary, 200, [
+            'Content-Type' => $mime,
+            'Content-Disposition' => 'attachment; filename="' . rawurlencode($safeFilename) . '"',
+        ]);
+    }
+
+    /**
+     * Xóa file đính kèm
+     */
+    public function deleteAttachment($id)
+    {
+        $attachment = InvoiceAttachment::with('invoice')->findOrFail($id);
+
+        $currentUser = Auth::user();
+        if ($currentUser && !$currentUser->isAdmin()) {
+            if ($attachment->invoice && $attachment->invoice->company_id != $currentUser->company_id) {
+                if (request()->ajax() || request()->wantsJson()) {
+                    return response()->json(['error' => 'Bạn không có quyền xóa file này.'], 403);
+                }
+                abort(403, 'Bạn không có quyền xóa file này.');
+            }
+        }
+
+        $fileName = $attachment->file_name;
+        $invoiceId = $attachment->invoice_id;
+        $attachment->delete();
+
+        if (request()->ajax() || request()->wantsJson()) {
+            $remainingCount = InvoiceAttachment::where('invoice_id', $invoiceId)->count();
+            return response()->json([
+                'success' => true,
+                'message' => "Đã xóa file [{$fileName}] thành công!",
+                'count' => $remainingCount,
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Đã xóa file [{$fileName}] thành công!");
     }
 }

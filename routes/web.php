@@ -35,6 +35,13 @@ Route::middleware('auth')->group(function () {
     Route::put('/companies/{id}', [CompanyController::class, 'update'])->name('company.update');
     Route::delete('/companies/{id}', [CompanyController::class, 'destroy'])->name('company.destroy');
 
+    // Đính kèm file Doanh nghiệp (Hồ sơ, ĐKKD, HĐ Nguyên Tắc, Catalogue, Báo giá...)
+    Route::get('/partners/{id}/attachments', [CompanyController::class, 'getAttachments'])->name('partner.attachments.index');
+    Route::post('/partners/{id}/attachments', [CompanyController::class, 'uploadAttachments'])->name('partner.attachments.store');
+    Route::get('/partner-attachments/{id}/view', [CompanyController::class, 'viewAttachment'])->name('partner.attachments.view');
+    Route::get('/partner-attachments/{id}/download', [CompanyController::class, 'downloadAttachment'])->name('partner.attachments.download');
+    Route::delete('/partner-attachments/{id}', [CompanyController::class, 'deleteAttachment'])->name('partner.attachments.destroy');
+
     // Quản lý CTY của tôi (Dành riêng cho Admin)
     Route::get('/quan-ly-cty', [CompanyController::class, 'myCompaniesIndex'])->name('my-company.index');
     Route::post('/my-companies', [CompanyController::class, 'storeMyCompany'])->name('my-company.store');
@@ -51,7 +58,15 @@ Route::middleware('auth')->group(function () {
     Route::delete('/invoices/{id}', [InvoiceController::class, 'destroy'])->name('invoice.destroy');
     Route::post('/invoices/{id}/pay', [InvoiceController::class, 'pay'])->name('invoice.pay');
     Route::post('/invoices/{id}/toggle-status', [InvoiceController::class, 'toggleStatus'])->name('invoice.toggle-status');
+    Route::post('/invoices/{id}/toggle-concern', [InvoiceController::class, 'toggleConcern'])->name('invoice.toggle-concern');
     Route::get('/hoa-don/{id}/in', [InvoiceController::class, 'print'])->name('invoice.print');
+
+    // Đính kèm file hóa đơn (HĐ, BG, HS liên quan, Hóa đơn)
+    Route::get('/invoices/{id}/attachments', [InvoiceController::class, 'getAttachments'])->name('invoice.attachments.index');
+    Route::post('/invoices/{id}/attachments', [InvoiceController::class, 'uploadAttachments'])->name('invoice.attachments.store');
+    Route::get('/invoice-attachments/{id}/view', [InvoiceController::class, 'viewAttachment'])->name('invoice.attachments.view');
+    Route::get('/invoice-attachments/{id}/download', [InvoiceController::class, 'downloadAttachment'])->name('invoice.attachments.download');
+    Route::delete('/invoice-attachments/{id}', [InvoiceController::class, 'deleteAttachment'])->name('invoice.attachments.destroy');
 
     // Đối tác & Công nợ
     Route::post('/partners', [DebtController::class, 'storePartner'])->name('partner.store');

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Company;
 use App\Models\Partner;
+use App\Models\PartnerAttachment;
 use Illuminate\Support\Facades\Auth;
 
 class CompanyController extends Controller
@@ -21,7 +22,7 @@ class CompanyController extends Controller
         $user = Auth::user();
         $isAdmin = $user ? $user->isAdmin() : true;
 
-        $query = Partner::withCount(['invoices', 'debts'])->with('company');
+        $query = Partner::withCount(['invoices', 'debts', 'attachments'])->with(['company', 'attachments']);
 
         // Phân quyền dữ liệu theo vai trò tài khoản:
         // Tài khoản CTY: chỉ hiển thị doanh nghiệp do chính CTY đó nhập vào
@@ -278,5 +279,205 @@ class CompanyController extends Controller
         $company->delete();
 
         return redirect()->back()->with('success', "Đã xóa CTY [{$name}]!");
+    }
+
+    /**
+     * Lấy danh sách file đính kèm của doanh nghiệp (AJAX)
+     */
+    public function getAttachments($id)
+    {
+        $partner = Partner::with('attachments')->findOrFail($id);
+
+        $currentUser = Auth::user();
+        if ($currentUser && !$currentUser->isAdmin()) {
+            if ($partner->company_id && $partner->company_id != $currentUser->company_id) {
+                return response()->json(['error' => 'Bạn không có quyền truy cập doanh nghiệp này.'], 403);
+            }
+        }
+
+        $attachments = $partner->attachments->map(function ($att) {
+            return [
+                'id' => $att->id,
+                'category' => $att->category,
+                'category_label' => $att->category_label,
+                'category_badge' => $att->category_short_badge,
+                'file_name' => $att->file_name,
+                'file_size' => $att->formatted_size,
+                'mime_type' => $att->mime_type,
+                'is_image' => $att->is_image,
+                'is_pdf' => $att->is_pdf,
+                'notes' => $att->notes,
+                'uploaded_by' => $att->uploaded_by,
+                'created_at' => $att->created_at ? $att->created_at->format('d/m/Y H:i') : '',
+                'view_url' => route('partner.attachments.view', $att->id),
+                'download_url' => route('partner.attachments.download', $att->id),
+            ];
+        });
+
+        return response()->json([
+            'partner' => [
+                'id' => $partner->id,
+                'name' => $partner->name,
+                'code' => $partner->code,
+                'tax_code' => $partner->tax_code,
+                'representative' => $partner->representative,
+                'phone' => $partner->phone,
+            ],
+            'attachments' => $attachments,
+            'count' => $attachments->count(),
+        ]);
+    }
+
+    /**
+     * Tải file đính kèm lên doanh nghiệp
+     */
+    public function uploadAttachments(Request $request, $id)
+    {
+        $partner = Partner::findOrFail($id);
+
+        $currentUser = Auth::user();
+        if ($currentUser && !$currentUser->isAdmin()) {
+            if ($partner->company_id && $partner->company_id != $currentUser->company_id) {
+                return response()->json(['error' => 'Bạn không có quyền thực hiện thao tác này.'], 403);
+            }
+        }
+
+        $validated = $request->validate([
+            'category' => 'required|in:license,contract,profile,catalogue,doc',
+            'files' => 'required|array|min:1',
+            'files.*' => 'required|file|max:20480', // tối đa 20MB / file
+            'notes' => 'nullable|string|max:255',
+        ], [
+            'category.required' => 'Vui lòng chọn phân loại tài liệu.',
+            'files.required' => 'Vui lòng chọn ít nhất 1 file đính kèm.',
+            'files.*.max' => 'File tải lên không được vượt quá 20MB.',
+        ]);
+
+        $uploadedCount = 0;
+        $category = $validated['category'];
+        $notes = $validated['notes'] ?? null;
+        $userName = $currentUser ? $currentUser->name : 'Người dùng';
+
+        foreach ($request->file('files') as $file) {
+            $fileName = $file->getClientOriginalName();
+            $mimeType = $file->getClientMimeType();
+            $fileSize = $file->getSize();
+
+            // Mã hóa base64 để lưu trực tiếp trong PostgreSQL (đảm bảo vĩnh viễn trên cả Vercel và máy cục bộ)
+            $fileData = base64_encode(file_get_contents($file->getRealPath()));
+
+            PartnerAttachment::create([
+                'partner_id' => $partner->id,
+                'category' => $category,
+                'file_name' => $fileName,
+                'mime_type' => $mimeType,
+                'file_size' => $fileSize,
+                'file_data' => $fileData,
+                'notes' => $notes,
+                'uploaded_by' => $userName,
+            ]);
+
+            $uploadedCount++;
+        }
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Đã đính kèm thành công {$uploadedCount} file vào doanh nghiệp [{$partner->name}]!",
+                'count' => $partner->attachments()->count(),
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Đã đính kèm thành công {$uploadedCount} file vào doanh nghiệp [{$partner->name}]!");
+    }
+
+    /**
+     * Xem trực tiếp file đính kèm của doanh nghiệp (Ảnh / PDF)
+     */
+    public function viewAttachment($id)
+    {
+        $attachment = PartnerAttachment::with('partner')->findOrFail($id);
+
+        $currentUser = Auth::user();
+        if ($currentUser && !$currentUser->isAdmin()) {
+            if ($attachment->partner && $attachment->partner->company_id && $attachment->partner->company_id != $currentUser->company_id) {
+                abort(403, 'Bạn không có quyền xem file này.');
+            }
+        }
+
+        if (empty($attachment->file_data)) {
+            abort(404, 'Dữ liệu file không tồn tại.');
+        }
+
+        $binary = base64_decode($attachment->file_data);
+        $mime = $attachment->mime_type ?: 'application/octet-stream';
+        $safeFilename = str_replace('"', '', $attachment->file_name);
+
+        return response($binary, 200, [
+            'Content-Type' => $mime,
+            'Content-Disposition' => 'inline; filename="' . rawurlencode($safeFilename) . '"',
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
+    }
+
+    /**
+     * Tải file đính kèm về máy
+     */
+    public function downloadAttachment($id)
+    {
+        $attachment = PartnerAttachment::with('partner')->findOrFail($id);
+
+        $currentUser = Auth::user();
+        if ($currentUser && !$currentUser->isAdmin()) {
+            if ($attachment->partner && $attachment->partner->company_id && $attachment->partner->company_id != $currentUser->company_id) {
+                abort(403, 'Bạn không có quyền tải file này.');
+            }
+        }
+
+        if (empty($attachment->file_data)) {
+            abort(404, 'Dữ liệu file không tồn tại.');
+        }
+
+        $binary = base64_decode($attachment->file_data);
+        $mime = $attachment->mime_type ?: 'application/octet-stream';
+        $safeFilename = str_replace('"', '', $attachment->file_name);
+
+        return response($binary, 200, [
+            'Content-Type' => $mime,
+            'Content-Disposition' => 'attachment; filename="' . rawurlencode($safeFilename) . '"',
+        ]);
+    }
+
+    /**
+     * Xóa file đính kèm của doanh nghiệp
+     */
+    public function deleteAttachment($id)
+    {
+        $attachment = PartnerAttachment::with('partner')->findOrFail($id);
+
+        $currentUser = Auth::user();
+        if ($currentUser && !$currentUser->isAdmin()) {
+            if ($attachment->partner && $attachment->partner->company_id && $attachment->partner->company_id != $currentUser->company_id) {
+                if (request()->ajax() || request()->wantsJson()) {
+                    return response()->json(['error' => 'Bạn không có quyền xóa file này.'], 403);
+                }
+                abort(403, 'Bạn không có quyền xóa file này.');
+            }
+        }
+
+        $fileName = $attachment->file_name;
+        $partnerId = $attachment->partner_id;
+        $attachment->delete();
+
+        if (request()->ajax() || request()->wantsJson()) {
+            $remainingCount = PartnerAttachment::where('partner_id', $partnerId)->count();
+            return response()->json([
+                'success' => true,
+                'message' => "Đã xóa file [{$fileName}] thành công!",
+                'count' => $remainingCount,
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Đã xóa file [{$fileName}] thành công!");
     }
 }

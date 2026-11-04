@@ -139,6 +139,11 @@
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-4 p-2">
                                         <li>
+                                            <button class="dropdown-item small py-2 rounded-3" type="button" onclick="openPartnerAttachmentsModal({{ $partner->id }}, '{{ addslashes($partner->name) }}')">
+                                                <i class="bi bi-paperclip me-2 text-primary"></i> Đính kèm file ({{ $partner->attachments_count ?? 0 }})
+                                            </button>
+                                        </li>
+                                        <li>
                                             <button class="dropdown-item small py-2 rounded-3" type="button" onclick="openEditCompanyModal({{ json_encode($partner) }})">
                                                 <i class="bi bi-pencil me-2 text-primary"></i> Sửa thông tin
                                             </button>
@@ -232,6 +237,28 @@
                                     <i class="bi bi-info-circle me-1"></i> "{{ $partner->notes }}"
                                 </div>
                             @endif
+                        </div>
+
+                        <!-- Nút Quản lý Hồ sơ & File đính kèm của doanh nghiệp -->
+                        <div class="mb-2">
+                            <button type="button" 
+                                    class="btn btn-sm {{ ($partner->attachments_count ?? 0) > 0 ? 'btn-soft-primary' : 'btn-light border text-secondary' }} rounded-pill w-100 py-1 d-flex align-items-center justify-content-between px-3 text-decoration-none shadow-none" 
+                                    onclick="openPartnerAttachmentsModal({{ $partner->id }}, '{{ addslashes($partner->name) }}')"
+                                    title="Xem và đính kèm giấy phép ĐKKD, hợp đồng nguyên tắc, catalogue, báo giá...">
+                                <span class="d-inline-flex align-items-center gap-2 small fw-semibold">
+                                    <i class="bi bi-paperclip text-primary fs-6"></i>
+                                    <span>Hồ sơ &amp; File đính kèm</span>
+                                </span>
+                                @if(($partner->attachments_count ?? 0) > 0)
+                                    <span class="badge bg-primary text-white rounded-pill px-2 py-1" style="font-size: 0.7rem;">
+                                        <i class="bi bi-file-earmark-check-fill me-1"></i>{{ $partner->attachments_count }} file
+                                    </span>
+                                @else
+                                    <span class="badge bg-white text-muted border rounded-pill px-2 py-0" style="font-size: 0.68rem;">
+                                        <i class="bi bi-plus-lg me-1"></i>+ File
+                                    </span>
+                                @endif
+                            </button>
                         </div>
 
                         <!-- Các nút liên kết hóa đơn đầu vào & hóa đơn xuất ra -->
@@ -569,6 +596,144 @@
     </div>
 </div>
 
+<!-- ========================================================================= -->
+<!-- MODAL QUẢN LÝ FILE ĐÍNH KÈM DOANH NGHIỆP -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalPartnerAttachments" tabindex="-1" aria-labelledby="modalPartnerAttachmentsLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header border-bottom py-3 px-4" style="background-color: var(--blue-soft-50);">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center" style="width: 2.2rem; height: 2.2rem; font-size: 1rem;">
+                        <i class="bi bi-paperclip"></i>
+                    </span>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0 fs-6" id="modalPartnerAttachmentsLabel">
+                            Hồ Sơ &amp; File Đính Kèm Doanh Nghiệp <span id="partnerAttModalName" class="text-primary font-monospace"></span>
+                        </h5>
+                        <div class="text-muted" style="font-size: 0.75rem;" id="partnerAttModalSub">
+                            Lưu trữ giấy phép ĐKKD, hợp đồng nguyên tắc, hồ sơ năng lực, catalogue, báo giá...
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-4">
+                <!-- Khu vực Tải file mới lên -->
+                <div class="card border rounded-3 mb-4 shadow-none" style="background-color: #f8fafc; border-color: var(--border-soft) !important;">
+                    <div class="card-body p-3">
+                        <h6 class="fw-bold text-dark mb-2 d-flex align-items-center gap-2" style="font-size: 0.9rem;">
+                            <i class="bi bi-cloud-arrow-up-fill text-primary"></i>
+                            <span>Tải thêm file đính kèm mới</span>
+                        </h6>
+                        <form id="uploadPartnerAttachmentForm" method="POST" enctype="multipart/form-data" onsubmit="handleUploadPartnerAttachments(event)">
+                            @csrf
+                            <input type="hidden" id="partner_att_partner_id" name="partner_id" value="">
+                            
+                            <div class="row g-2 mb-2">
+                                <div class="col-12 col-md-5">
+                                    <label class="form-label small fw-semibold text-dark mb-1">
+                                        Phân loại tài liệu <span class="text-danger">*</span>
+                                    </label>
+                                    <select name="category" id="partner_att_category" class="form-select form-select-sm rounded-3 shadow-none" required>
+                                        <option value="license">📜 Giấy phép ĐKKD (Đăng ký kinh doanh)</option>
+                                        <option value="contract">📑 HĐ Nguyên Tắc (Hợp đồng / Thỏa thuận)</option>
+                                        <option value="profile">🏢 Hồ Sơ Năng Lực (Profile công ty)</option>
+                                        <option value="catalogue">📊 Báo Giá / Catalogue sản phẩm</option>
+                                        <option value="doc">📁 Tài Liệu Khác (Giấy ủy quyền / Chứng từ...)</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-7">
+                                    <label class="form-label small fw-semibold text-dark mb-1">
+                                        Chọn file đính kèm (có thể chọn nhiều file) <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="file" name="files[]" id="partner_att_files_input" class="form-control form-control-sm rounded-3 shadow-none" multiple required accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.zip,.rar">
+                                    <div class="text-muted" style="font-size: 0.72rem; margin-top: 0.2rem;">
+                                        Hỗ trợ: PDF, Ảnh (JPG, PNG), Excel, Word, ZIP. Tối đa 20MB / file.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row g-2 align-items-end">
+                                <div class="col-12 col-md-8">
+                                    <label class="form-label small fw-semibold text-dark mb-1">Ghi chú tệp (tùy chọn)</label>
+                                    <input type="text" name="notes" id="partner_att_notes" class="form-control form-control-sm rounded-3 shadow-none" placeholder="Ví dụ: Giấy phép kinh doanh năm 2026, Báo giá nguyên liệu đợt 1...">
+                                </div>
+                                <div class="col-12 col-md-4 text-end">
+                                    <button type="submit" id="btnUploadPartnerAttachment" class="btn btn-theme-primary btn-sm rounded-pill px-3 py-1 w-100 shadow-sm d-flex align-items-center justify-content-center gap-1">
+                                        <i class="bi bi-upload"></i>
+                                        <span>+ Tải Lên Doanh Nghiệp</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Tabs lọc danh mục file -->
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <div class="btn-group btn-group-sm p-1 rounded-pill flex-wrap" style="background-color: #f1f5f9;" role="group">
+                        <button type="button" class="btn btn-sm rounded-pill px-3 partner-att-filter-btn active bg-white text-primary fw-semibold shadow-sm" onclick="filterPartnerAttachmentList('all', this)">
+                            Tất cả (<span id="count_partner_att_all">0</span>)
+                        </button>
+                        <button type="button" class="btn btn-sm rounded-pill px-2 partner-att-filter-btn text-muted border-0" onclick="filterPartnerAttachmentList('license', this)">
+                            📜 ĐKKD (<span id="count_partner_att_license">0</span>)
+                        </button>
+                        <button type="button" class="btn btn-sm rounded-pill px-2 partner-att-filter-btn text-muted border-0" onclick="filterPartnerAttachmentList('contract', this)">
+                            📑 HĐ Nguyên Tắc (<span id="count_partner_att_contract">0</span>)
+                        </button>
+                        <button type="button" class="btn btn-sm rounded-pill px-2 partner-att-filter-btn text-muted border-0" onclick="filterPartnerAttachmentList('profile', this)">
+                            🏢 Hồ Sơ NL (<span id="count_partner_att_profile">0</span>)
+                        </button>
+                        <button type="button" class="btn btn-sm rounded-pill px-2 partner-att-filter-btn text-muted border-0" onclick="filterPartnerAttachmentList('catalogue', this)">
+                            📊 Báo Giá/Catalogue (<span id="count_partner_att_catalogue">0</span>)
+                        </button>
+                        <button type="button" class="btn btn-sm rounded-pill px-2 partner-att-filter-btn text-muted border-0" onclick="filterPartnerAttachmentList('doc', this)">
+                            📁 Khác (<span id="count_partner_att_doc">0</span>)
+                        </button>
+                    </div>
+
+                    <div class="text-muted small" style="font-size: 0.78rem;">
+                        <span id="partnerAttTotalFilesNotice">0 tệp tin đính kèm</span>
+                    </div>
+                </div>
+
+                <!-- Danh sách file đính kèm -->
+                <div id="partnerAttListLoading" class="text-center py-4 d-none">
+                    <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+                    <span class="ms-2 small text-muted">Đang tải danh sách file...</span>
+                </div>
+
+                <div id="partnerAttEmptyState" class="text-center py-4 text-muted border rounded-3 bg-light d-none">
+                    <i class="bi bi-folder2-open fs-2 text-secondary opacity-50 d-block mb-1"></i>
+                    <span class="small">Chưa có file đính kèm nào cho doanh nghiệp này.</span>
+                </div>
+
+                <div id="partnerAttTableWrapper" class="table-responsive rounded-3 border">
+                    <table class="table table-hover align-middle mb-0" style="font-size: 0.83rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tên Tài Liệu &amp; Kích Thước</th>
+                                <th style="width: 8.5rem;">Phân Loại</th>
+                                <th style="width: 9rem;">Thời Gian Tải</th>
+                                <th class="text-end" style="width: 8rem;">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="partnerAttTableBody">
+                            <!-- Danh sách load bằng AJAX -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="modal-footer bg-light border-top py-2 px-4 rounded-bottom-4">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
     function openEditCompanyModal(item) {
@@ -589,6 +754,200 @@
         document.getElementById('edit_company_notes').value = item.notes || '';
 
         modal.show();
+    }
+
+    // --- LOGIC QUẢN LÝ FILE ĐÍNH KÈM DOANH NGHIỆP ---
+    let currentPartnerAttachments = [];
+    let currentPartnerAttachmentFilter = 'all';
+    let currentActivePartnerId = null;
+
+    function openPartnerAttachmentsModal(partnerId, partnerName) {
+        currentActivePartnerId = partnerId;
+        const modalEl = document.getElementById('modalPartnerAttachments');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+        document.getElementById('partnerAttModalName').textContent = `[${partnerName}]`;
+        document.getElementById('partner_att_partner_id').value = partnerId;
+        document.getElementById('uploadPartnerAttachmentForm').action = `/partners/${partnerId}/attachments`;
+        document.getElementById('partner_att_files_input').value = '';
+        document.getElementById('partner_att_notes').value = '';
+
+        modal.show();
+        loadPartnerAttachments(partnerId);
+    }
+
+    function loadPartnerAttachments(partnerId) {
+        const loadingEl = document.getElementById('partnerAttListLoading');
+        const tableWrapper = document.getElementById('partnerAttTableWrapper');
+        const emptyState = document.getElementById('partnerAttEmptyState');
+
+        loadingEl.classList.remove('d-none');
+        tableWrapper.classList.add('d-none');
+        emptyState.classList.add('d-none');
+
+        fetch(`/partners/${partnerId}/attachments`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            loadingEl.classList.add('d-none');
+            currentPartnerAttachments = data.attachments || [];
+            renderPartnerAttachmentList();
+        })
+        .catch(err => {
+            loadingEl.classList.add('d-none');
+            alert('Lỗi tải danh sách file: ' + err.message);
+        });
+    }
+
+    function renderPartnerAttachmentList() {
+        const tableWrapper = document.getElementById('partnerAttTableWrapper');
+        const emptyState = document.getElementById('partnerAttEmptyState');
+        const tbody = document.getElementById('partnerAttTableBody');
+
+        const total = currentPartnerAttachments.length;
+        const countLicense = currentPartnerAttachments.filter(a => a.category === 'license').length;
+        const countContract = currentPartnerAttachments.filter(a => a.category === 'contract').length;
+        const countProfile = currentPartnerAttachments.filter(a => a.category === 'profile').length;
+        const countCatalogue = currentPartnerAttachments.filter(a => a.category === 'catalogue').length;
+        const countDoc = currentPartnerAttachments.filter(a => a.category === 'doc').length;
+
+        document.getElementById('count_partner_att_all').textContent = total;
+        document.getElementById('count_partner_att_license').textContent = countLicense;
+        document.getElementById('count_partner_att_contract').textContent = countContract;
+        document.getElementById('count_partner_att_profile').textContent = countProfile;
+        document.getElementById('count_partner_att_catalogue').textContent = countCatalogue;
+        document.getElementById('count_partner_att_doc').textContent = countDoc;
+        document.getElementById('partnerAttTotalFilesNotice').textContent = `${total} tệp tin đính kèm`;
+
+        let filtered = currentPartnerAttachments;
+        if (currentPartnerAttachmentFilter !== 'all') {
+            filtered = currentPartnerAttachments.filter(a => a.category === currentPartnerAttachmentFilter);
+        }
+
+        if (filtered.length === 0) {
+            tableWrapper.classList.add('d-none');
+            emptyState.classList.remove('d-none');
+            return;
+        }
+
+        emptyState.classList.add('d-none');
+        tableWrapper.classList.remove('d-none');
+
+        tbody.innerHTML = filtered.map(att => {
+            let iconClass = 'bi-file-earmark-text text-secondary';
+            if (att.is_image) iconClass = 'bi-file-earmark-image text-success';
+            else if (att.is_pdf) iconClass = 'bi-file-earmark-pdf text-danger';
+            else if (att.file_name.endsWith('.xls') || att.file_name.endsWith('.xlsx')) iconClass = 'bi-file-earmark-spreadsheet text-success';
+            else if (att.file_name.endsWith('.doc') || att.file_name.endsWith('.docx')) iconClass = 'bi-file-earmark-word text-primary';
+            else if (att.file_name.endsWith('.zip') || att.file_name.endsWith('.rar')) iconClass = 'bi-file-earmark-zip text-warning';
+
+            return `
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi ${iconClass} fs-4"></i>
+                            <div class="text-truncate" style="max-width: 18rem;">
+                                <a href="${att.view_url}" target="_blank" class="fw-bold text-dark text-decoration-none" title="${att.file_name}">
+                                    ${att.file_name}
+                                </a>
+                                <div class="text-muted small" style="font-size: 0.73rem;">
+                                    <span>${att.file_size}</span>
+                                    ${att.notes ? `• <span class="fst-italic text-secondary">${att.notes}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        ${att.category_badge}
+                    </td>
+                    <td>
+                        <div class="text-dark small">${att.created_at}</div>
+                        <div class="text-muted" style="font-size: 0.7rem;">${att.uploaded_by || ''}</div>
+                    </td>
+                    <td class="text-end">
+                        <div class="d-inline-flex gap-1 align-items-center">
+                            <a href="${att.view_url}" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-2 rounded-2" style="font-size: 0.75rem;" title="Xem file">
+                                <i class="bi bi-eye"></i> Xem
+                            </a>
+                            <a href="${att.download_url}" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-2" style="font-size: 0.75rem;" title="Tải file về máy">
+                                <i class="bi bi-download"></i> Tải
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 rounded-2" style="font-size: 0.75rem;" title="Xóa file" onclick="deletePartnerAttachmentItem(${att.id})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function filterPartnerAttachmentList(category, btnEl) {
+        currentPartnerAttachmentFilter = category;
+        document.querySelectorAll('.partner-att-filter-btn').forEach(b => {
+            b.className = 'btn btn-sm rounded-pill px-2 partner-att-filter-btn text-muted border-0';
+        });
+        btnEl.className = 'btn btn-sm rounded-pill px-3 partner-att-filter-btn active bg-white text-primary fw-semibold shadow-sm';
+        renderPartnerAttachmentList();
+    }
+
+    function handleUploadPartnerAttachments(e) {
+        e.preventDefault();
+        const form = e.target;
+        const btn = document.getElementById('btnUploadPartnerAttachment');
+        const partnerId = document.getElementById('partner_att_partner_id').value;
+        const formData = new FormData(form);
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang tải...';
+
+        fetch(`/partners/${partnerId}/attachments`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-upload"></i> <span>+ Tải Lên Doanh Nghiệp</span>';
+            if (data.success) {
+                document.getElementById('partner_att_files_input').value = '';
+                document.getElementById('partner_att_notes').value = '';
+                loadPartnerAttachments(partnerId);
+            } else {
+                alert(data.message || 'Lỗi khi tải file lên.');
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-upload"></i> <span>+ Tải Lên Doanh Nghiệp</span>';
+            alert('Lỗi: ' + err.message);
+        });
+    }
+
+    function deletePartnerAttachmentItem(id) {
+        if (!confirm('Bạn có chắc chắn muốn xóa file đính kèm này không?')) return;
+
+        fetch(`/partner-attachments/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                loadPartnerAttachments(currentActivePartnerId);
+            } else {
+                alert(data.error || 'Lỗi xóa file.');
+            }
+        })
+        .catch(err => alert('Lỗi: ' + err.message));
     }
 </script>
 @endpush

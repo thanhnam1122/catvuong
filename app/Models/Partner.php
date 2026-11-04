@@ -36,4 +36,9 @@ class Partner extends Model
     {
         return $this->hasMany(Invoice::class);
     }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(PartnerAttachment::class)->orderBy('id', 'desc');
+    }
 }

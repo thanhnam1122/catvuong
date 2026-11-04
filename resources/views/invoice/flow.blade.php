@@ -16,7 +16,7 @@
             <form action="{{ $isOut ? route('invoice.out') : route('invoice.in') }}" method="GET" class="row g-2 align-items-end">
                 @if(Auth::check() && Auth::user()->isAdmin())
                     <!-- Chọn CTY (Chỉ hiển thị cho Quản trị viên) -->
-                    <div class="col-12 col-md-5 col-lg-4">
+                    <div class="col-12 col-md-4 col-lg-3">
                         <label class="form-label text-muted small mb-1 fw-semibold">
                             <i class="bi bi-building me-1 text-primary"></i> CTY:
                         </label>
@@ -33,10 +33,22 @@
                     </div>
                 @endif
 
-                <!-- Lọc theo trạng thái thanh toán -->
-                <div class="{{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-6 col-md-3 col-lg-3' : 'col-6 col-md-4 col-lg-3' }}">
+                <!-- Lọc theo phân loại Quan tâm / Không quan tâm -->
+                <div class="{{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-6 col-md-4 col-lg-2' : 'col-6 col-md-4 col-lg-3' }}">
                     <label class="form-label text-muted small mb-1 fw-semibold">
-                        <i class="bi bi-funnel me-1 text-primary"></i> Trạng thái thanh toán:
+                        <i class="bi bi-star me-1 text-warning"></i> Phân loại:
+                    </label>
+                    <select name="concern" class="form-select form-select-sm rounded-3 shadow-none" onchange="this.form.submit()">
+                        <option value="all" {{ (empty($concern) || $concern === 'all') ? 'selected' : '' }}>Tất cả phân loại</option>
+                        <option value="1" {{ ($concern === '1' || $concern === 1) ? 'selected' : '' }}>⭐ Quan tâm ({{ $concernedCount }})</option>
+                        <option value="0" {{ ($concern === '0' || $concern === 0) ? 'selected' : '' }}>⚪ Không quan tâm ({{ $unconcernedCount }})</option>
+                    </select>
+                </div>
+
+                <!-- Lọc theo trạng thái thanh toán -->
+                <div class="{{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-6 col-md-4 col-lg-2' : 'col-6 col-md-4 col-lg-3' }}">
+                    <label class="form-label text-muted small mb-1 fw-semibold">
+                        <i class="bi bi-funnel me-1 text-primary"></i> Trạng thái:
                     </label>
                     <select name="status" class="form-select form-select-sm rounded-3 shadow-none" onchange="this.form.submit()">
                         <option value="all" {{ empty($status) || $status == 'all' ? 'selected' : '' }}>Tất cả trạng thái</option>
@@ -48,16 +60,16 @@
                 </div>
 
                 <!-- Tìm kiếm -->
-                <div class="{{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-12 col-md-4 col-lg-4' : 'col-12 col-md-8 col-lg-9' }}">
+                <div class="{{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-12 col-md-8 col-lg-4' : 'col-12 col-md-8 col-lg-5' }}">
                     <label class="form-label text-muted small mb-1 fw-semibold">
                         <i class="bi bi-search me-1 text-primary"></i> Tìm kiếm:
                     </label>
                     <div class="input-group input-group-sm">
                         <input type="text" name="search" class="form-control rounded-start-pill ps-3 shadow-none" placeholder="Số HĐ, tên đối tác, diễn giải..." value="{{ $search ?? '' }}">
-                        <button class="btn btn-soft-primary px-3 {{ (empty($search) && (empty($companyId) || $companyId == 'all') && (empty($status) || $status == 'all')) ? 'rounded-end-pill' : '' }}" type="submit">
+                        <button class="btn btn-soft-primary px-3 {{ (empty($search) && (empty($companyId) || $companyId == 'all') && (empty($status) || $status == 'all') && (empty($concern) || $concern == 'all')) ? 'rounded-end-pill' : '' }}" type="submit">
                             <i class="bi bi-search"></i> Lọc
                         </button>
-                        @if(!empty($search) || (!empty($companyId) && $companyId != 'all') || (!empty($status) && $status != 'all'))
+                        @if(!empty($search) || (!empty($companyId) && $companyId != 'all') || (!empty($status) && $status != 'all') || (!empty($concern) && $concern != 'all'))
                             <a href="{{ $isOut ? route('invoice.out') : route('invoice.in') }}" class="btn btn-outline-secondary rounded-end-pill px-2 d-flex align-items-center" title="Đặt lại bộ lọc">
                                 <i class="bi bi-x-lg"></i>
                             </a>
@@ -191,6 +203,7 @@
                             <th style="width: 11.5rem;">CTY</th>
                         @endif
                         <th style="width: 14rem;">Doanh Nghiệp</th>
+                        <th class="text-center" style="width: 8.5rem;">Phân Loại</th>
                         <th class="text-end" style="width: 8.5rem;">Tiền Trước Thuế</th>
                         <th class="text-center" style="width: 6.5rem;">VAT (%)</th>
                         <th class="text-end" style="width: 9rem;">Tổng Thanh Toán</th>
@@ -208,16 +221,35 @@
                             $isPaid = $inv->status === 'paid' || $remaining <= 0;
                         @endphp
                         <tr>
-                            <!-- Số hóa đơn -->
+                            <!-- Số hóa đơn (Bấm vào để xem & đính kèm file) -->
                             <td>
-                                <span class="fw-semibold text-secondary font-monospace" style="font-size: 0.88rem;">
-                                    {{ $inv->invoice_number }}
-                                </span>
-                                @if($inv->debt_id)
-                                    <div class="text-primary" style="font-size: 0.7rem;" title="Có liên kết vào sổ theo dõi">
-                                        <i class="bi bi-link-45deg"></i> Có liên kết
-                                    </div>
-                                @endif
+                                <button type="button" 
+                                        class="btn btn-link p-0 fw-bold text-primary font-monospace text-decoration-none d-inline-flex align-items-center gap-1 shadow-none"
+                                        style="font-size: 0.9rem;" 
+                                        onclick="openInvoiceAttachmentsModal({{ $inv->id }}, '{{ $inv->invoice_number }}')"
+                                        title="Nhấn để xem & đính kèm file (HĐ, BG, HS liên quan, Hóa đơn)">
+                                    <i class="bi bi-paperclip fs-6"></i>
+                                    <span>{{ $inv->invoice_number }}</span>
+                                </button>
+                                <div class="d-flex flex-wrap align-items-center gap-1 mt-1">
+                                    <button type="button" 
+                                            class="badge {{ $inv->attachments_count > 0 ? 'bg-primary-subtle text-primary border-primary-subtle' : 'bg-light text-muted border' }} border rounded-pill px-2 py-0 text-decoration-none shadow-none" 
+                                            style="font-size: 0.68rem; cursor: pointer;"
+                                            onclick="openInvoiceAttachmentsModal({{ $inv->id }}, '{{ $inv->invoice_number }}')"
+                                            title="Quản lý file đính kèm của hóa đơn này">
+                                        @if($inv->attachments_count > 0)
+                                            <i class="bi bi-file-earmark-check-fill me-1 text-primary"></i><strong>{{ $inv->attachments_count }}</strong> file
+                                        @else
+                                            <i class="bi bi-plus-lg me-1"></i>+ File
+                                        @endif
+                                    </button>
+
+                                    @if($inv->debt_id)
+                                        <span class="text-secondary small d-inline-flex align-items-center" style="font-size: 0.68rem;" title="Có liên kết vào sổ theo dõi">
+                                            <i class="bi bi-link-45deg"></i> Sổ nợ
+                                        </span>
+                                    @endif
+                                </div>
                             </td>
 
                             <!-- CTY (Chỉ hiển thị cho Quản trị viên) -->
@@ -247,6 +279,27 @@
                                 @else
                                     <span class="text-muted">---</span>
                                 @endif
+                            </td>
+
+                            <!-- Phân loại (Quan tâm / Không quan tâm) -->
+                            <td class="text-center">
+                                <button type="button" 
+                                        class="btn btn-sm p-0 border-0 bg-transparent shadow-none"
+                                        id="btn-concern-{{ $inv->id }}"
+                                        onclick="toggleInvoiceConcern({{ $inv->id }})"
+                                        title="Nhấn để đổi sang {{ $inv->is_concerned ? 'Không quan tâm' : 'Quan tâm' }}">
+                                    @if($inv->is_concerned)
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem; cursor: pointer;">
+                                            <i class="bi bi-star-fill text-warning"></i>
+                                            <span>Quan tâm</span>
+                                        </span>
+                                    @else
+                                        <span class="badge bg-light text-secondary border rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem; cursor: pointer;">
+                                            <i class="bi bi-dash-circle text-muted"></i>
+                                            <span>Không quan tâm</span>
+                                        </span>
+                                    @endif
+                                </button>
                             </td>
 
                             <!-- Tiền trước thuế -->
@@ -350,6 +403,16 @@
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-4 p-2">
                                             <li>
+                                                <button class="dropdown-item small py-2 rounded-3" type="button" onclick="openInvoiceAttachmentsModal({{ $inv->id }}, '{{ $inv->invoice_number }}')">
+                                                    <i class="bi bi-paperclip me-2 text-primary"></i> Đính kèm file ({{ $inv->attachments_count }})
+                                                </button>
+                                            </li>
+                                            <li>
+                                                <button class="dropdown-item small py-2 rounded-3" type="button" onclick="toggleInvoiceConcern({{ $inv->id }})">
+                                                    <i class="bi bi-star me-2 text-warning"></i> Chuyển sang: {{ $inv->is_concerned ? 'Không quan tâm' : 'Quan tâm' }}
+                                                </button>
+                                            </li>
+                                            <li>
                                                 <button class="dropdown-item small py-2 rounded-3" type="button" onclick="openEditInvoiceModal({{ json_encode($inv) }})">
                                                     <i class="bi bi-pencil me-2 text-primary"></i> Sửa hóa đơn
                                                 </button>
@@ -371,7 +434,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ (Auth::check() && Auth::user()->isAdmin()) ? 11 : 10 }}" class="text-center py-5 text-muted">
+                            <td colspan="{{ (Auth::check() && Auth::user()->isAdmin()) ? 12 : 11 }}" class="text-center py-5 text-muted">
                                 <div class="mb-2">
                                     <i class="bi bi-receipt fs-1 text-secondary opacity-50"></i>
                                 </div>
@@ -488,6 +551,7 @@
                             <select name="tax_rate" id="flow_tax_rate" class="form-select rounded-3 shadow-none" onchange="calculateFlowInvoiceTotal()">
                                 <option value="10">10% (Thuế GTGT phổ thông)</option>
                                 <option value="8">8% (Thuế GTGT ưu đãi)</option>
+                                <option value="5">5% (Thuế GTGT 5%)</option>
                                 <option value="0">0% (Không chịu thuế)</option>
                             </select>
                         </div>
@@ -528,14 +592,23 @@
                             </select>
                         </div>
 
-                        <!-- Ngày lập & Ngày hẹn trả -->
-                        <div class="col-12 col-md-6">
+                        <!-- Ngày lập & Ngày hẹn trả & Phân loại theo dõi -->
+                        <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold text-dark small mb-1">Ngày lập hóa đơn <span class="text-danger">*</span></label>
                             <input type="date" name="issue_date" class="form-control rounded-3 shadow-none" value="{{ date('Y-m-d') }}" required>
                         </div>
-                        <div class="col-12 col-md-6">
+                        <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold text-dark small mb-1">Hạn thanh toán</label>
                             <input type="date" name="due_date" class="form-control rounded-3 shadow-none">
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold text-dark small mb-1">
+                                Phân loại theo dõi <span class="text-danger">*</span>
+                            </label>
+                            <select name="is_concerned" class="form-select rounded-3 shadow-none">
+                                <option value="1" selected>⭐ Quan tâm (Nguyên liệu...)</option>
+                                <option value="0">⚪ Không quan tâm (Tiếp khách...)</option>
+                            </select>
                         </div>
 
                         <!-- Tùy chọn liên kết công nợ -->
@@ -694,6 +767,7 @@
                             <select name="tax_rate" id="edit_inv_tax_rate" class="form-select rounded-3 shadow-none">
                                 <option value="10">10%</option>
                                 <option value="8">8%</option>
+                                <option value="5">5%</option>
                                 <option value="0">0%</option>
                             </select>
                         </div>
@@ -710,13 +784,20 @@
                                 <option value="cancelled">❌ Đã hủy</option>
                             </select>
                         </div>
-                        <div class="col-12 col-md-6">
+                        <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold text-dark small mb-1">Ngày lập</label>
                             <input type="date" name="issue_date" id="edit_inv_issue_date" class="form-control rounded-3 shadow-none" required>
                         </div>
-                        <div class="col-12 col-md-6">
+                        <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold text-dark small mb-1">Hạn trả</label>
                             <input type="date" name="due_date" id="edit_inv_due_date" class="form-control rounded-3 shadow-none">
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold text-dark small mb-1">Phân loại theo dõi</label>
+                            <select name="is_concerned" id="edit_inv_is_concerned" class="form-select rounded-3 shadow-none">
+                                <option value="1">⭐ Quan tâm</option>
+                                <option value="0">⚪ Không quan tâm</option>
+                            </select>
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-semibold text-dark small mb-1">Ghi chú</label>
@@ -823,6 +904,146 @@
                 <a href="#" id="detailPartnerFilterLink" class="btn btn-soft-primary btn-sm rounded-pill px-3">
                     <i class="bi bi-receipt me-1"></i> Lọc hóa đơn của DN này
                 </a>
+                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Đính Kèm File Cho Hóa Đơn (HĐ, BG, HS liên quan, Hóa đơn) -->
+<div class="modal fade" id="modalInvoiceAttachments" tabindex="-1" aria-labelledby="modalInvoiceAttachmentsLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header border-bottom py-3 px-4" style="background-color: var(--blue-soft-50);">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center" style="width: 2.2rem; height: 2.2rem; font-size: 1rem;">
+                        <i class="bi bi-paperclip"></i>
+                    </span>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0 fs-6" id="modalInvoiceAttachmentsLabel">
+                            File Đính Kèm Hóa Đơn <span id="attModalInvoiceNumber" class="text-primary font-monospace"></span>
+                        </h5>
+                        <div class="text-muted" style="font-size: 0.75rem;" id="attModalInvoiceSub">
+                            Đính kèm HĐ, BG, HS liên quan, hóa đơn chứng từ, ủy nhiệm chi (UNC)
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-4">
+                <!-- Khu vực Tải file mới lên -->
+                <div class="card border rounded-3 mb-4 shadow-none" style="background-color: #f8fafc; border-color: var(--border-soft) !important;">
+                    <div class="card-body p-3">
+                        <h6 class="fw-bold text-dark mb-2 d-flex align-items-center gap-2" style="font-size: 0.9rem;">
+                            <i class="bi bi-cloud-arrow-up-fill text-primary"></i>
+                            <span>Tải thêm file đính kèm mới</span>
+                        </h6>
+                        <form id="uploadAttachmentForm" method="POST" enctype="multipart/form-data" onsubmit="handleUploadAttachments(event)">
+                            @csrf
+                            <input type="hidden" id="att_invoice_id" name="invoice_id" value="">
+                            
+                            <div class="row g-2 mb-2">
+                                <div class="col-12 col-md-5">
+                                    <label class="form-label small fw-semibold text-dark mb-1">
+                                        Phân loại tài liệu <span class="text-danger">*</span>
+                                    </label>
+                                    <select name="category" id="att_category" class="form-select form-select-sm rounded-3 shadow-none" required>
+                                        <option value="invoice">📄 Hóa đơn (Hóa đơn GTGT / Chứng từ gốc)</option>
+                                        <option value="contract">📑 HĐ (Hợp đồng / Phụ lục)</option>
+                                        <option value="quote">📊 BG (Bảng báo giá)</option>
+                                        <option value="doc">📁 HS liên quan (Nghiệm thu / Biên bản / Hồ sơ khác)</option>
+                                        <option value="unc">🏦 UNC (Ủy nhiệm chi / Giấy báo nợ)</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-7">
+                                    <label class="form-label small fw-semibold text-dark mb-1">
+                                        Chọn file đính kèm (có thể chọn nhiều file) <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="file" name="files[]" id="att_files_input" class="form-control form-control-sm rounded-3 shadow-none" multiple required accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.zip,.rar">
+                                    <div class="text-muted" style="font-size: 0.72rem; margin-top: 0.2rem;">
+                                        Hỗ trợ: PDF, Ảnh (JPG, PNG), Excel, Word. Tối đa 20MB / file.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row g-2 align-items-end">
+                                <div class="col-12 col-md-8">
+                                    <label class="form-label small fw-semibold text-dark mb-1">Ghi chú tệp (tùy chọn)</label>
+                                    <input type="text" name="notes" id="att_notes" class="form-control form-control-sm rounded-3 shadow-none" placeholder="Ví dụ: Bản scan có chữ ký 2 bên, Báo giá đợt 1...">
+                                </div>
+                                <div class="col-12 col-md-4 text-end">
+                                    <button type="submit" id="btnUploadAttachment" class="btn btn-theme-primary btn-sm rounded-pill px-3 py-1 w-100 shadow-sm d-flex align-items-center justify-content-center gap-1">
+                                        <i class="bi bi-upload"></i>
+                                        <span>+ Tải Lên Hóa Đơn</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Tabs lọc danh mục file -->
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <div class="btn-group btn-group-sm p-1 rounded-pill" style="background-color: #f1f5f9;" role="group">
+                        <button type="button" class="btn btn-sm rounded-pill px-3 att-filter-btn active bg-white text-primary fw-semibold shadow-sm" onclick="filterAttachmentList('all', this)">
+                            Tất cả (<span id="count_att_all">0</span>)
+                        </button>
+                        <button type="button" class="btn btn-sm rounded-pill px-2 att-filter-btn text-muted border-0" onclick="filterAttachmentList('invoice', this)">
+                            📄 Hóa đơn (<span id="count_att_invoice">0</span>)
+                        </button>
+                        <button type="button" class="btn btn-sm rounded-pill px-2 att-filter-btn text-muted border-0" onclick="filterAttachmentList('contract', this)">
+                            📑 HĐ (<span id="count_att_contract">0</span>)
+                        </button>
+                        <button type="button" class="btn btn-sm rounded-pill px-2 att-filter-btn text-muted border-0" onclick="filterAttachmentList('quote', this)">
+                            📊 BG (<span id="count_att_quote">0</span>)
+                        </button>
+                        <button type="button" class="btn btn-sm rounded-pill px-2 att-filter-btn text-muted border-0" onclick="filterAttachmentList('doc', this)">
+                            📁 HS liên quan (<span id="count_att_doc">0</span>)
+                        </button>
+                        <button type="button" class="btn btn-sm rounded-pill px-2 att-filter-btn text-muted border-0" onclick="filterAttachmentList('unc', this)">
+                            🏦 UNC (<span id="count_att_unc">0</span>)
+                        </button>
+                    </div>
+
+                    <div class="text-muted small" style="font-size: 0.78rem;">
+                        <span id="attTotalFilesNotice">0 tệp tin đính kèm</span>
+                    </div>
+                </div>
+
+                <!-- Danh sách file đính kèm -->
+                <div id="attListLoading" class="text-center py-4 d-none">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                    <div class="text-muted small mt-2">Đang tải danh sách file...</div>
+                </div>
+
+                <div id="attEmptyState" class="text-center py-4 text-muted border rounded-3 bg-light d-none">
+                    <i class="bi bi-folder-x fs-2 text-secondary opacity-50 d-block mb-1"></i>
+                    <div class="fw-semibold text-dark small">Chưa có file đính kèm nào</div>
+                    <div style="font-size: 0.75rem;">Mỗi hóa đơn có tệp đính kèm riêng biệt. Hãy chọn file bên trên để đính kèm.</div>
+                </div>
+
+                <div class="table-responsive rounded-3 border" id="attTableWrapper">
+                    <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tên Tài Liệu &amp; Kích Thước</th>
+                                <th style="width: 8rem;">Phân Loại</th>
+                                <th style="width: 9rem;">Thời Gian Tải</th>
+                                <th class="text-end" style="width: 8rem;">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attTableBody">
+                            <!-- Render bằng JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="modal-footer bg-light border-top py-2 px-4 rounded-bottom-4 d-flex justify-content-between">
+                <span class="text-muted small" style="font-size: 0.75rem;">
+                    <i class="bi bi-shield-check text-success me-1"></i> File được lưu trữ an toàn &amp; vĩnh viễn theo mã hóa đơn
+                </span>
                 <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
             </div>
         </div>
@@ -1068,7 +1289,245 @@
         document.getElementById('edit_inv_status').value = inv.status;
         document.getElementById('edit_inv_notes').value = inv.notes || '';
 
+        const concernVal = (inv.is_concerned === false || inv.is_concerned === 0 || inv.is_concerned === '0') ? '0' : '1';
+        const editConcernSelect = document.getElementById('edit_inv_is_concerned');
+        if (editConcernSelect) {
+            editConcernSelect.value = concernVal;
+        }
+
         modal.show();
+    }
+
+    function toggleInvoiceConcern(invoiceId) {
+        const btn = document.getElementById(`btn-concern-${invoiceId}`);
+        if (!btn) return;
+
+        fetch(`/invoices/${invoiceId}/toggle-concern`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (data.is_concerned) {
+                    btn.innerHTML = `
+                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem; cursor: pointer;">
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <span>Quan tâm</span>
+                        </span>
+                    `;
+                    btn.title = 'Nhấn để đổi sang Không quan tâm';
+                } else {
+                    btn.innerHTML = `
+                        <span class="badge bg-light text-secondary border rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem; cursor: pointer;">
+                            <i class="bi bi-dash-circle text-muted"></i>
+                            <span>Không quan tâm</span>
+                        </span>
+                    `;
+                    btn.title = 'Nhấn để đổi sang Quan tâm';
+                }
+            } else {
+                alert(data.error || 'Có lỗi xảy ra.');
+            }
+        })
+        .catch(err => alert('Lỗi: ' + err.message));
+    }
+
+    // --- LOGIC QUẢN LÝ FILE ĐÍNH KÈM HÓA ĐƠN ---
+    let currentInvoiceAttachments = [];
+    let currentAttachmentFilter = 'all';
+    let currentActiveInvoiceId = null;
+
+    function openInvoiceAttachmentsModal(invoiceId, invoiceNumber) {
+        currentActiveInvoiceId = invoiceId;
+        const modalEl = document.getElementById('modalInvoiceAttachments');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+        document.getElementById('attModalInvoiceNumber').textContent = `[${invoiceNumber}]`;
+        document.getElementById('att_invoice_id').value = invoiceId;
+        document.getElementById('uploadAttachmentForm').action = `/invoices/${invoiceId}/attachments`;
+        document.getElementById('att_files_input').value = '';
+        document.getElementById('att_notes').value = '';
+
+        modal.show();
+        loadInvoiceAttachments(invoiceId);
+    }
+
+    function loadInvoiceAttachments(invoiceId) {
+        const loadingEl = document.getElementById('attListLoading');
+        const tableWrapper = document.getElementById('attTableWrapper');
+        const emptyState = document.getElementById('attEmptyState');
+
+        loadingEl.classList.remove('d-none');
+        tableWrapper.classList.add('d-none');
+        emptyState.classList.add('d-none');
+
+        fetch(`/invoices/${invoiceId}/attachments`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            loadingEl.classList.add('d-none');
+            currentInvoiceAttachments = data.attachments || [];
+            renderAttachmentList();
+        })
+        .catch(err => {
+            loadingEl.classList.add('d-none');
+            alert('Lỗi tải danh sách file: ' + err.message);
+        });
+    }
+
+    function renderAttachmentList() {
+        const tableWrapper = document.getElementById('attTableWrapper');
+        const emptyState = document.getElementById('attEmptyState');
+        const tbody = document.getElementById('attTableBody');
+
+        const total = currentInvoiceAttachments.length;
+        const countInvoice = currentInvoiceAttachments.filter(a => a.category === 'invoice').length;
+        const countContract = currentInvoiceAttachments.filter(a => a.category === 'contract').length;
+        const countQuote = currentInvoiceAttachments.filter(a => a.category === 'quote').length;
+        const countDoc = currentInvoiceAttachments.filter(a => a.category === 'doc').length;
+        const countUnc = currentInvoiceAttachments.filter(a => a.category === 'unc').length;
+
+        document.getElementById('count_att_all').textContent = total;
+        document.getElementById('count_att_invoice').textContent = countInvoice;
+        document.getElementById('count_att_contract').textContent = countContract;
+        document.getElementById('count_att_quote').textContent = countQuote;
+        document.getElementById('count_att_doc').textContent = countDoc;
+        document.getElementById('count_att_unc').textContent = countUnc;
+        document.getElementById('attTotalFilesNotice').textContent = `${total} tệp tin đính kèm`;
+
+        let filtered = currentInvoiceAttachments;
+        if (currentAttachmentFilter !== 'all') {
+            filtered = currentInvoiceAttachments.filter(a => a.category === currentAttachmentFilter);
+        }
+
+        if (filtered.length === 0) {
+            tableWrapper.classList.add('d-none');
+            emptyState.classList.remove('d-none');
+            return;
+        }
+
+        emptyState.classList.add('d-none');
+        tableWrapper.classList.remove('d-none');
+
+        tbody.innerHTML = filtered.map(att => {
+            let iconClass = 'bi-file-earmark-text text-secondary';
+            if (att.is_image) iconClass = 'bi-file-earmark-image text-success';
+            else if (att.is_pdf) iconClass = 'bi-file-earmark-pdf text-danger';
+            else if (att.file_name.endsWith('.xls') || att.file_name.endsWith('.xlsx')) iconClass = 'bi-file-earmark-spreadsheet text-success';
+            else if (att.file_name.endsWith('.doc') || att.file_name.endsWith('.docx')) iconClass = 'bi-file-earmark-word text-primary';
+
+            return `
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi ${iconClass} fs-4"></i>
+                            <div class="text-truncate" style="max-width: 18rem;">
+                                <a href="${att.view_url}" target="_blank" class="fw-bold text-dark text-decoration-none" title="${att.file_name}">
+                                    ${att.file_name}
+                                </a>
+                                <div class="text-muted small" style="font-size: 0.73rem;">
+                                    <span>${att.file_size}</span>
+                                    ${att.notes ? `• <span class="fst-italic text-secondary">${att.notes}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        ${att.category_badge}
+                    </td>
+                    <td>
+                        <div class="text-dark small">${att.created_at}</div>
+                        <div class="text-muted" style="font-size: 0.7rem;">${att.uploaded_by || ''}</div>
+                    </td>
+                    <td class="text-end">
+                        <div class="d-inline-flex gap-1 align-items-center">
+                            <a href="${att.view_url}" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-2 rounded-2" style="font-size: 0.75rem;" title="Xem file">
+                                <i class="bi bi-eye"></i> Xem
+                            </a>
+                            <a href="${att.download_url}" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-2" style="font-size: 0.75rem;" title="Tải file về máy">
+                                <i class="bi bi-download"></i> Tải
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 rounded-2" style="font-size: 0.75rem;" title="Xóa file" onclick="deleteAttachmentItem(${att.id})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function filterAttachmentList(category, btnEl) {
+        currentAttachmentFilter = category;
+        document.querySelectorAll('.att-filter-btn').forEach(b => {
+            b.className = 'btn btn-sm rounded-pill px-2 att-filter-btn text-muted border-0';
+        });
+        btnEl.className = 'btn btn-sm rounded-pill px-3 att-filter-btn active bg-white text-primary fw-semibold shadow-sm';
+        renderAttachmentList();
+    }
+
+    function handleUploadAttachments(e) {
+        e.preventDefault();
+        const form = e.target;
+        const btn = document.getElementById('btnUploadAttachment');
+        const invoiceId = document.getElementById('att_invoice_id').value;
+        const formData = new FormData(form);
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang tải...';
+
+        fetch(`/invoices/${invoiceId}/attachments`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-upload"></i> <span>+ Tải Lên Hóa Đơn</span>';
+            if (data.success) {
+                document.getElementById('att_files_input').value = '';
+                document.getElementById('att_notes').value = '';
+                loadInvoiceAttachments(invoiceId);
+            } else {
+                alert(data.message || 'Lỗi khi tải file lên.');
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-upload"></i> <span>+ Tải Lên Hóa Đơn</span>';
+            alert('Lỗi: ' + err.message);
+        });
+    }
+
+    function deleteAttachmentItem(id) {
+        if (!confirm('Bạn có chắc chắn muốn xóa file đính kèm này không?')) return;
+
+        fetch(`/invoice-attachments/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                loadInvoiceAttachments(currentActiveInvoiceId);
+            } else {
+                alert(data.error || 'Lỗi xóa file.');
+            }
+        })
+        .catch(err => alert('Lỗi: ' + err.message));
     }
 </script>
 @endpush

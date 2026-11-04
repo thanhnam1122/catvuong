@@ -13,6 +13,7 @@ class Invoice extends Model
         'partner_id',
         'debt_id',
         'type', // out (đầu ra - bán hàng), in (đầu vào - mua hàng)
+        'is_concerned', // boolean: true (Quan tâm: nguyên liệu, hàng hóa...), false (Không quan tâm: tiếp khách, chi phí vặt...)
         'title',
         'subtotal',
         'tax_rate',
@@ -26,6 +27,7 @@ class Invoice extends Model
     ];
 
     protected $casts = [
+        'is_concerned' => 'boolean',
         'subtotal' => 'decimal:2',
         'tax_rate' => 'decimal:2',
         'tax_amount' => 'decimal:2',
@@ -48,6 +50,11 @@ class Invoice extends Model
     public function debt(): BelongsTo
     {
         return $this->belongsTo(Debt::class);
+    }
+
+    public function attachments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(InvoiceAttachment::class)->orderBy('id', 'desc');
     }
 
     public function getRemainingAmountAttribute(): float
