@@ -441,7 +441,7 @@
                             <select name="partner_id" id="flow_partner_select" class="form-select rounded-3 shadow-none">
                                 <option value="">-- Chọn đối tác đã có --</option>
                                 @foreach($partners as $p)
-                                    <option value="{{ $p->id }}">{{ $p->name }} {{ $p->phone ? '('.$p->phone.')' : '' }}</option>
+                                    <option value="{{ $p->id }}" data-company-id="{{ $p->company_id }}">{{ $p->name }} {{ $p->phone ? '('.$p->phone.')' : '' }}</option>
                                 @endforeach
                                 <option value="NEW">+ Thêm đối tác mới ngay...</option>
                             </select>
@@ -478,7 +478,7 @@
                                 Tiền trước thuế (VNĐ) <span class="text-danger">*</span>
                             </label>
                             <div class="input-group">
-                                <input type="number" step="1000" name="subtotal" id="flow_subtotal" class="form-control fw-bold rounded-start-3 shadow-none" placeholder="0" required oninput="calculateFlowInvoiceTotal()">
+                                <input type="text" inputmode="numeric" name="subtotal" id="flow_subtotal" class="form-control fw-bold rounded-start-3 shadow-none currency-input" placeholder="0" required>
                                 <span class="input-group-text bg-light text-muted rounded-end-3">đ</span>
                             </div>
                         </div>
@@ -510,7 +510,7 @@
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold text-dark small mb-1">Đã thanh toán trước (nếu có)</label>
                             <div class="input-group">
-                                <input type="number" step="1000" name="paid_amount" id="flow_create_paid" class="form-control rounded-start-3 shadow-none" placeholder="0" value="0" oninput="updateCreatePaidState()">
+                                <input type="text" inputmode="numeric" name="paid_amount" id="flow_create_paid" class="form-control rounded-start-3 shadow-none currency-input" placeholder="0" value="0">
                                 <span class="input-group-text bg-light text-muted rounded-end-3">đ</span>
                             </div>
                             <div class="form-text small d-flex justify-content-between mt-1">
@@ -607,7 +607,7 @@
                             Số tiền thanh toán đợt này (VNĐ) <span class="text-danger">*</span>
                         </label>
                         <div class="input-group">
-                            <input type="number" step="1000" name="amount" id="invPayInputAmount" class="form-control fs-5 fw-bold text-success rounded-start-3 shadow-none" required oninput="previewPaymentRemaining()">
+                            <input type="text" inputmode="numeric" name="amount" id="invPayInputAmount" class="form-control fs-5 fw-bold text-success rounded-start-3 shadow-none currency-input" required>
                             <span class="input-group-text bg-light text-muted rounded-end-3">đ</span>
                         </div>
                         <div id="invPayPreviewResult" class="mt-2 p-2 rounded-3 small bg-light border">
@@ -673,7 +673,7 @@
                             <label class="form-label fw-semibold text-dark small mb-1">Doanh Nghiệp / Đối Tác</label>
                             <select name="partner_id" id="edit_inv_partner_id" class="form-select rounded-3 shadow-none" required>
                                 @foreach($partners as $p)
-                                    <option value="{{ $p->id }}">{{ $p->name }}</option>
+                                    <option value="{{ $p->id }}" data-company-id="{{ $p->company_id }}">{{ $p->name }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -687,7 +687,7 @@
                         </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold text-dark small mb-1">Tiền trước thuế (VNĐ)</label>
-                            <input type="number" step="1000" name="subtotal" id="edit_inv_subtotal" class="form-control fw-bold rounded-3 shadow-none" required>
+                            <input type="text" inputmode="numeric" name="subtotal" id="edit_inv_subtotal" class="form-control fw-bold rounded-3 shadow-none currency-input" required>
                         </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold text-dark small mb-1">Thuế suất VAT (%)</label>
@@ -699,7 +699,7 @@
                         </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold text-dark small mb-1">Đã thanh toán (VNĐ)</label>
-                            <input type="number" step="1000" name="paid_amount" id="edit_inv_paid_amount" class="form-control rounded-3 shadow-none">
+                            <input type="text" inputmode="numeric" name="paid_amount" id="edit_inv_paid_amount" class="form-control rounded-3 shadow-none currency-input">
                         </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold text-dark small mb-1">Trạng thái</label>
@@ -873,8 +873,84 @@
 
         modal.show();
     }
+    function formatNumberWithCommas(value) {
+        if (value === null || value === undefined || value === '') return '';
+        let clean = value.toString().replace(/[^0-9]/g, '');
+        if (!clean) return '';
+        return clean.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+
+    function parseNumberFromCommas(value) {
+        if (!value) return 0;
+        const clean = value.toString().replace(/,/g, '');
+        return parseFloat(clean) || 0;
+    }
+
+    document.addEventListener('input', function(e) {
+        if (e.target.classList.contains('currency-input')) {
+            const rawVal = e.target.value.replace(/[^0-9]/g, '');
+            e.target.value = formatNumberWithCommas(rawVal);
+
+            if (e.target.id === 'flow_subtotal') {
+                calculateFlowInvoiceTotal();
+            } else if (e.target.id === 'flow_create_paid') {
+                updateCreatePaidState();
+            } else if (e.target.id === 'invPayInputAmount') {
+                previewPaymentRemaining();
+            }
+        }
+    });
+
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function() {
+            form.querySelectorAll('.currency-input').forEach(input => {
+                input.value = input.value.replace(/,/g, '');
+            });
+        });
+    });
+
+    function setupPartnerFilter(companySelectId, partnerSelectId) {
+        const compSelect = document.getElementById(companySelectId);
+        const partnerSelect = document.getElementById(partnerSelectId);
+        if (!partnerSelect) return;
+
+        function filterOptions() {
+            const selectedCompId = compSelect ? compSelect.value : '';
+            const options = partnerSelect.querySelectorAll('option');
+            let hasValidSelected = false;
+
+            options.forEach(opt => {
+                const compId = opt.getAttribute('data-company-id');
+                if (!compId || opt.value === '' || opt.value === 'NEW') {
+                    opt.hidden = false;
+                    opt.disabled = false;
+                } else if (!selectedCompId || compId == selectedCompId) {
+                    opt.hidden = false;
+                    opt.disabled = false;
+                    if (opt.selected) hasValidSelected = true;
+                } else {
+                    opt.hidden = true;
+                    opt.disabled = true;
+                    if (opt.selected) opt.selected = false;
+                }
+            });
+
+            if (!hasValidSelected && partnerSelect.value !== 'NEW' && partnerSelect.value !== '') {
+                partnerSelect.value = '';
+            }
+        }
+
+        if (compSelect) {
+            compSelect.addEventListener('change', filterOptions);
+            filterOptions();
+        }
+    }
+
+    setupPartnerFilter('flow_company_select', 'flow_partner_select');
+    setupPartnerFilter('edit_inv_company_id', 'edit_inv_partner_id');
+
     function calculateFlowInvoiceTotal() {
-        const subtotal = parseFloat(document.getElementById('flow_subtotal').value) || 0;
+        const subtotal = parseNumberFromCommas(document.getElementById('flow_subtotal').value);
         const rate = parseFloat(document.getElementById('flow_tax_rate').value) || 0;
         const tax = Math.round(subtotal * (rate / 100));
         const total = subtotal + tax;
@@ -885,11 +961,11 @@
     }
 
     function updateCreatePaidState() {
-        const subtotal = parseFloat(document.getElementById('flow_subtotal').value) || 0;
+        const subtotal = parseNumberFromCommas(document.getElementById('flow_subtotal').value);
         const rate = parseFloat(document.getElementById('flow_tax_rate').value) || 0;
         const total = subtotal + Math.round(subtotal * (rate / 100));
         const paidInput = document.getElementById('flow_create_paid');
-        const paid = parseFloat(paidInput ? paidInput.value : 0) || 0;
+        const paid = parseNumberFromCommas(paidInput ? paidInput.value : 0);
         const statusSelect = document.getElementById('flow_status_select');
         const remainingEl = document.getElementById('flow_create_remaining');
 
@@ -942,14 +1018,14 @@
         document.getElementById('invPayCurrentPaid').textContent = new Intl.NumberFormat('vi-VN').format(currentInvoicePaid) + ' đ';
         document.getElementById('invPayRemaining').textContent = new Intl.NumberFormat('vi-VN').format(currentInvoiceRemaining) + ' đ';
 
-        document.getElementById('invPayInputAmount').value = currentInvoiceRemaining;
+        document.getElementById('invPayInputAmount').value = formatNumberWithCommas(currentInvoiceRemaining);
         previewPaymentRemaining();
 
         modal.show();
     }
 
     function previewPaymentRemaining() {
-        const amount = parseFloat(document.getElementById('invPayInputAmount').value) || 0;
+        const amount = parseNumberFromCommas(document.getElementById('invPayInputAmount').value);
         const newRemaining = Math.max(0, currentInvoiceRemaining - amount);
         const previewRemainingEl = document.getElementById('invPayPreviewRemaining');
         const previewStatusEl = document.getElementById('invPayPreviewStatus');
@@ -977,12 +1053,16 @@
 
         document.getElementById('edit_inv_display_number').textContent = `[${inv.invoice_number}]`;
         document.getElementById('edit_inv_company_id').value = inv.company_id;
+        const editCompSelect = document.getElementById('edit_inv_company_id');
+        if (editCompSelect) {
+            editCompSelect.dispatchEvent(new Event('change'));
+        }
         document.getElementById('edit_inv_partner_id').value = inv.partner_id;
         document.getElementById('edit_inv_number').value = inv.invoice_number;
         document.getElementById('edit_inv_title').value = inv.title;
-        document.getElementById('edit_inv_subtotal').value = inv.subtotal;
+        document.getElementById('edit_inv_subtotal').value = formatNumberWithCommas(inv.subtotal);
         document.getElementById('edit_inv_tax_rate').value = parseInt(inv.tax_rate);
-        document.getElementById('edit_inv_paid_amount').value = inv.paid_amount || 0;
+        document.getElementById('edit_inv_paid_amount').value = formatNumberWithCommas(inv.paid_amount || 0);
         document.getElementById('edit_inv_issue_date').value = inv.issue_date ? inv.issue_date.substring(0, 10) : '';
         document.getElementById('edit_inv_due_date').value = inv.due_date ? inv.due_date.substring(0, 10) : '';
         document.getElementById('edit_inv_status').value = inv.status;

@@ -248,15 +248,28 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link px-3 py-2 rounded-pill fw-medium d-flex align-items-center gap-1 {{ Request::routeIs('company.*') ? 'active bg-primary-subtle text-primary fw-bold' : 'text-secondary' }}" href="{{ route('company.index') }}">
-                            <i class="bi bi-buildings"></i>
+                            <i class="bi bi-people"></i>
                             <span>Doanh Nghiệp ({{ (Auth::check() && !Auth::user()->isAdmin() && Auth::user()->company_id) ? \App\Models\Partner::where('company_id', Auth::user()->company_id)->count() : \App\Models\Partner::count() }})</span>
                         </a>
                     </li>
+                    @if(Auth::check() && Auth::user()->isAdmin())
+                        <li class="nav-item">
+                            <a class="nav-link px-3 py-2 rounded-pill fw-medium d-flex align-items-center gap-1 {{ Request::routeIs('my-company.*') ? 'active bg-primary-subtle text-primary fw-bold' : 'text-secondary' }}" href="{{ route('my-company.index') }}">
+                                <i class="bi bi-buildings-fill text-primary"></i>
+                                <span>Quản Lý CTY ({{ \App\Models\Company::count() }})</span>
+                            </a>
+                        </li>
+                    @endif
                 </ul>
 
                 <!-- Nút hành động theo ngữ cảnh trang hiện tại -->
                 <div class="d-flex flex-wrap align-items-center gap-2">
-                    @if(Request::routeIs('company.*'))
+                    @if(Request::routeIs('my-company.*'))
+                        <button type="button" class="btn btn-theme-primary btn-sm d-flex align-items-center gap-1 rounded-pill px-3 py-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAddMyCompany">
+                            <i class="bi bi-plus-circle-fill"></i>
+                            <span>+ Thêm CTY Mới</span>
+                        </button>
+                    @elseif(Request::routeIs('company.*'))
                         <button type="button" class="btn btn-theme-primary btn-sm d-flex align-items-center gap-1 rounded-pill px-3 py-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAddCompany">
                             <i class="bi bi-plus-circle-fill"></i>
                             <span>+ Thêm Doanh Nghiệp Mới</span>

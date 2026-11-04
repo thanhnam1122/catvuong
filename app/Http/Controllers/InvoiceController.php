@@ -40,16 +40,16 @@ class InvoiceController extends Controller
         if ($isCompanyUser) {
             $companyId = $currentUser->company_id;
             $companies = Company::where('id', $companyId)->get();
+            $partners = Partner::where('company_id', $companyId)->orderBy('name')->get();
         } else {
             $companyId = $request->get('company_id');
             $companies = Company::orderBy('name')->get();
+            $partners = Partner::orderBy('name')->get();
         }
 
         $partnerId = $request->get('partner_id');
         $status = $request->get('status'); // unpaid, paid, all
         $search = $request->get('search');
-
-        $partners = Partner::orderBy('name')->get();
 
         $query = Invoice::with(['company', 'partner', 'debt'])
             ->where('type', $flow);
@@ -113,6 +113,13 @@ class InvoiceController extends Controller
 
     public function store(Request $request)
     {
+        if ($request->has('subtotal')) {
+            $request->merge(['subtotal' => str_replace(',', '', (string)$request->subtotal)]);
+        }
+        if ($request->has('paid_amount')) {
+            $request->merge(['paid_amount' => str_replace(',', '', (string)$request->paid_amount)]);
+        }
+
         $validated = $request->validate([
             'company_id' => 'required|exists:companies,id',
             'partner_id' => 'nullable',
@@ -241,6 +248,13 @@ class InvoiceController extends Controller
     {
         $invoice = Invoice::findOrFail($id);
 
+        if ($request->has('subtotal')) {
+            $request->merge(['subtotal' => str_replace(',', '', (string)$request->subtotal)]);
+        }
+        if ($request->has('paid_amount')) {
+            $request->merge(['paid_amount' => str_replace(',', '', (string)$request->paid_amount)]);
+        }
+
         $validated = $request->validate([
             'company_id' => 'required|exists:companies,id',
             'partner_id' => 'required|exists:partners,id',
@@ -318,6 +332,10 @@ class InvoiceController extends Controller
     public function pay(Request $request, $id)
     {
         $invoice = Invoice::findOrFail($id);
+
+        if ($request->has('amount')) {
+            $request->merge(['amount' => str_replace(',', '', (string)$request->amount)]);
+        }
 
         $validated = $request->validate([
             'amount' => 'required|numeric|min:1',

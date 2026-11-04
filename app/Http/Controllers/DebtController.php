@@ -9,18 +9,24 @@ use App\Models\Debt;
 use App\Models\DebtPayment;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class DebtController extends Controller
 {
     public function index(Request $request)
     {
-        $companyId = $request->get('company_id');
-        $type = $request->get('type'); // receivable, payable, all
-        $status = $request->get('status'); // pending, partial, completed, overdue
-        $search = $request->get('search');
+        $currentUser = Auth::user();
+        $isCompanyUser = $currentUser && !$currentUser->isAdmin();
 
-        $companies = Company::orderBy('name')->get();
-        $partners = Partner::with('company')->orderBy('name')->get();
+        if ($isCompanyUser) {
+            $companyId = $currentUser->company_id;
+            $companies = Company::where('id', $companyId)->get();
+            $partners = Partner::where('company_id', $companyId)->orderBy('name')->get();
+        } else {
+            $companyId = $request->get('company_id');
+            $companies = Company::orderBy('name')->get();
+            $partners = Partner::with('company')->orderBy('name')->get();
+        }
 
         $query = Debt::with(['company', 'partner', 'payments' => function ($q) {
             $q->orderBy('payment_date', 'desc');
@@ -115,6 +121,18 @@ class DebtController extends Controller
 
     public function storeDebt(Request $request)
     {
+        if ($request->has('amount')) {
+            $request->merge(['amount' => str_replace(',', '', (string)$request->amount)]);
+        }
+        if ($request->has('paid_amount')) {
+            $request->merge(['paid_amount' => str_replace(',', '', (string)$request->paid_amount)]);
+        }
+
+        $currentUser = Auth::user();
+        if ($currentUser && !$currentUser->isAdmin()) {
+            $request->merge(['company_id' => $currentUser->company_id]);
+        }
+
         $validated = $request->validate([
             'company_id' => 'required|exists:companies,id',
             'partner_id' => 'nullable',
@@ -191,6 +209,10 @@ class DebtController extends Controller
     {
         $debt = Debt::findOrFail($id);
 
+        if ($request->has('amount')) {
+            $request->merge(['amount' => str_replace(',', '', (string)$request->amount)]);
+        }
+
         $validated = $request->validate([
             'company_id' => 'required|exists:companies,id',
             'partner_id' => 'required|exists:partners,id',
@@ -230,6 +252,10 @@ class DebtController extends Controller
     public function addPayment(Request $request, $id)
     {
         $debt = Debt::findOrFail($id);
+
+        if ($request->has('amount')) {
+            $request->merge(['amount' => str_replace(',', '', (string)$request->amount)]);
+        }
 
         $validated = $request->validate([
             'payment_date' => 'required|date',

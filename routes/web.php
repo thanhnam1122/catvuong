@@ -35,7 +35,8 @@ Route::middleware('auth')->group(function () {
     Route::put('/companies/{id}', [CompanyController::class, 'update'])->name('company.update');
     Route::delete('/companies/{id}', [CompanyController::class, 'destroy'])->name('company.destroy');
 
-    // Quản lý CTY của tôi
+    // Quản lý CTY của tôi (Dành riêng cho Admin)
+    Route::get('/quan-ly-cty', [CompanyController::class, 'myCompaniesIndex'])->name('my-company.index');
     Route::post('/my-companies', [CompanyController::class, 'storeMyCompany'])->name('my-company.store');
     Route::put('/my-companies/{id}', [CompanyController::class, 'updateMyCompany'])->name('my-company.update');
     Route::delete('/my-companies/{id}', [CompanyController::class, 'destroyMyCompany'])->name('my-company.destroy');

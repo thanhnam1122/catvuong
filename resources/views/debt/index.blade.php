@@ -476,7 +476,7 @@
                             <select name="partner_id" id="create_partner_select" class="form-select rounded-3 shadow-none">
                                 <option value="">-- Chọn đối tác đã có --</option>
                                 @foreach($partners as $p)
-                                    <option value="{{ $p->id }}">{{ $p->name }} {{ $p->phone ? '('.$p->phone.')' : '' }}</option>
+                                    <option value="{{ $p->id }}" data-company-id="{{ $p->company_id }}">{{ $p->name }} {{ $p->phone ? '('.$p->phone.')' : '' }}</option>
                                 @endforeach
                                 <option value="NEW">+ Thêm đối tác mới ngay...</option>
                             </select>
@@ -512,7 +512,7 @@
                                 Số tiền nợ gốc (VNĐ) <span class="text-danger">*</span>
                             </label>
                             <div class="input-group">
-                                <input type="number" step="1000" name="amount" id="create_amount" class="form-control fw-bold fs-6 rounded-start-3 shadow-none" placeholder="0" required>
+                                <input type="text" inputmode="numeric" name="amount" id="create_amount" class="form-control fw-bold fs-6 rounded-start-3 shadow-none currency-input" placeholder="0" required>
                                 <span class="input-group-text bg-light text-muted rounded-end-3">đ</span>
                             </div>
                         </div>
@@ -523,7 +523,7 @@
                                 Đã thanh toán trước (nếu có)
                             </label>
                             <div class="input-group">
-                                <input type="number" step="1000" name="paid_amount" class="form-control rounded-start-3 shadow-none" placeholder="0" value="0">
+                                <input type="text" inputmode="numeric" name="paid_amount" class="form-control rounded-start-3 shadow-none currency-input" placeholder="0" value="0">
                                 <span class="input-group-text bg-light text-muted rounded-end-3">đ</span>
                             </div>
                             <div class="form-text small">Nhập 0 nếu chưa thanh toán đợt nào</div>
@@ -600,7 +600,7 @@
                                 Số tiền thanh toán (VNĐ) <span class="text-danger">*</span>
                             </label>
                             <div class="input-group">
-                                <input type="number" step="1000" name="amount" id="paymentInputAmount" class="form-control fs-5 fw-bold text-success rounded-start-3 shadow-none" required>
+                                <input type="text" inputmode="numeric" name="amount" id="paymentInputAmount" class="form-control fs-5 fw-bold text-success rounded-start-3 shadow-none currency-input" required>
                                 <span class="input-group-text bg-light text-muted rounded-end-3">đ</span>
                             </div>
                         </div>
@@ -709,14 +709,14 @@
                             <label class="form-label fw-semibold text-dark small mb-1">Đối tác / Khách hàng</label>
                             <select name="partner_id" id="edit_partner_id" class="form-select rounded-3 shadow-none" required>
                                 @foreach($partners as $p)
-                                    <option value="{{ $p->id }}">{{ $p->name }} {{ $p->phone ? '('.$p->phone.')' : '' }}</option>
+                                    <option value="{{ $p->id }}" data-company-id="{{ $p->company_id }}">{{ $p->name }} {{ $p->phone ? '('.$p->phone.')' : '' }}</option>
                                 @endforeach
                             </select>
                         </div>
 
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold text-dark small mb-1">Số tiền nợ gốc (VNĐ)</label>
-                            <input type="number" step="1000" name="amount" id="edit_amount" class="form-control fw-bold rounded-3 shadow-none" required>
+                            <input type="text" inputmode="numeric" name="amount" id="edit_amount" class="form-control fw-bold rounded-3 shadow-none currency-input" required>
                         </div>
 
                         <div class="col-12">
@@ -882,6 +882,74 @@
 
 @push('scripts')
 <script>
+    function formatNumberWithCommas(value) {
+        if (value === null || value === undefined || value === '') return '';
+        let clean = value.toString().replace(/[^0-9]/g, '');
+        if (!clean) return '';
+        return clean.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+
+    function parseNumberFromCommas(value) {
+        if (!value) return 0;
+        const clean = value.toString().replace(/,/g, '');
+        return parseFloat(clean) || 0;
+    }
+
+    document.addEventListener('input', function(e) {
+        if (e.target.classList.contains('currency-input')) {
+            const rawVal = e.target.value.replace(/[^0-9]/g, '');
+            e.target.value = formatNumberWithCommas(rawVal);
+        }
+    });
+
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function() {
+            form.querySelectorAll('.currency-input').forEach(input => {
+                input.value = input.value.replace(/,/g, '');
+            });
+        });
+    });
+
+    function setupPartnerFilter(companySelectNameOrId, partnerSelectId) {
+        const compSelect = document.querySelector(`select[name="${companySelectNameOrId}"]`) || document.getElementById(companySelectNameOrId);
+        const partnerSelect = document.getElementById(partnerSelectId);
+        if (!partnerSelect) return;
+
+        function filterOptions() {
+            const selectedCompId = compSelect ? compSelect.value : '';
+            const options = partnerSelect.querySelectorAll('option');
+            let hasValidSelected = false;
+
+            options.forEach(opt => {
+                const compId = opt.getAttribute('data-company-id');
+                if (!compId || opt.value === '' || opt.value === 'NEW') {
+                    opt.hidden = false;
+                    opt.disabled = false;
+                } else if (!selectedCompId || compId == selectedCompId) {
+                    opt.hidden = false;
+                    opt.disabled = false;
+                    if (opt.selected) hasValidSelected = true;
+                } else {
+                    opt.hidden = true;
+                    opt.disabled = true;
+                    if (opt.selected) opt.selected = false;
+                }
+            });
+
+            if (!hasValidSelected && partnerSelect.value !== 'NEW' && partnerSelect.value !== '') {
+                partnerSelect.value = '';
+            }
+        }
+
+        if (compSelect) {
+            compSelect.addEventListener('change', filterOptions);
+            filterOptions();
+        }
+    }
+
+    setupPartnerFilter('company_id', 'create_partner_select');
+    setupPartnerFilter('edit_company_id', 'edit_partner_id');
+
     // Dữ liệu debts từ backend cho client JS
     const debtsData = @json($debts->items());
 
@@ -912,7 +980,7 @@
         
         const remaining = Math.max(0, parseFloat(debt.amount) - parseFloat(debt.paid_amount));
         document.getElementById('paymentDebtRemaining').textContent = new Intl.NumberFormat('vi-VN').format(remaining) + ' đ';
-        document.getElementById('paymentInputAmount').value = remaining;
+        document.getElementById('paymentInputAmount').value = formatNumberWithCommas(remaining);
 
         modal.show();
     }
@@ -926,9 +994,13 @@
         document.getElementById('editDebtCode').textContent = `[${debt.code}]`;
         document.getElementById('edit_type').value = debt.type;
         document.getElementById('edit_company_id').value = debt.company_id;
+        const editCompSelect = document.getElementById('edit_company_id');
+        if (editCompSelect) {
+            editCompSelect.dispatchEvent(new Event('change'));
+        }
         document.getElementById('edit_partner_id').value = debt.partner_id;
         document.getElementById('edit_title').value = debt.title;
-        document.getElementById('edit_amount').value = debt.amount;
+        document.getElementById('edit_amount').value = formatNumberWithCommas(debt.amount);
         document.getElementById('edit_issue_date').value = debt.issue_date ? debt.issue_date.substring(0, 10) : '';
         document.getElementById('edit_due_date').value = debt.due_date ? debt.due_date.substring(0, 10) : '';
         document.getElementById('edit_notes').value = debt.notes || '';

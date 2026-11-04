@@ -184,6 +184,47 @@ class CompanyController extends Controller
     }
 
     /**
+     * Trang Quản Lý CTY riêng biệt dành cho Role Admin
+     */
+    public function myCompaniesIndex(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user || !$user->isAdmin()) {
+            abort(403, 'Bạn không có quyền truy cập trang quản lý CTY.');
+        }
+
+        $search = $request->get('search');
+        $query = Company::with(['users'])
+            ->withCount(['partners', 'invoices', 'users']);
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('tax_code', 'like', "%{$search}%")
+                  ->orWhere('code', 'like', "%{$search}%")
+                  ->orWhere('representative', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhere('address', 'like', "%{$search}%");
+            });
+        }
+
+        $companies = $query->orderBy('name')->get();
+        $totalCompanies = Company::count();
+        $totalUsers = \App\Models\User::whereNotNull('company_id')->count();
+        $totalInvoices = \App\Models\Invoice::count();
+        $totalPartners = \App\Models\Partner::count();
+
+        return view('company.my_companies', compact(
+            'companies',
+            'search',
+            'totalCompanies',
+            'totalUsers',
+            'totalInvoices',
+            'totalPartners'
+        ));
+    }
+
+    /**
      * Thêm CTY của tôi
      */
     public function storeMyCompany(Request $request)
