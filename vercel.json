@@ -25,11 +25,14 @@
         }
     ],
     "env": {
+        "APP_NAME": "CatVuong",
         "APP_ENV": "production",
         "APP_DEBUG": "true",
         "VIEW_COMPILED_PATH": "/tmp/storage/framework/views",
         "CACHE_STORE": "array",
         "SESSION_DRIVER": "database",
+        "SESSION_LIFETIME": "120",
+        "SESSION_COOKIE": "catvuong_session",
         "LOG_CHANNEL": "stderr"
     }
 }

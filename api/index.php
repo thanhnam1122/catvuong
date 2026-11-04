@@ -23,6 +23,7 @@ foreach ($storageDirs as $dir) {
 // Set environment variables for serverless runtime
 $envDefaults = [
     'VERCEL' => '1',
+    'APP_NAME' => 'CatVuong',
     'APP_STORAGE' => '/tmp/storage',
     'VIEW_COMPILED_PATH' => '/tmp/storage/framework/views',
     'APP_SERVICES_CACHE' => '/tmp/bootstrap/cache/services.php',
@@ -31,7 +32,11 @@ $envDefaults = [
     'APP_ROUTES_CACHE' => '/tmp/bootstrap/cache/routes-v7.php',
     'APP_EVENTS_CACHE' => '/tmp/bootstrap/cache/events.php',
     'SESSION_DRIVER' => 'database',
+    'SESSION_LIFETIME' => '120',
+    'SESSION_COOKIE' => 'catvuong_session',
+    'SESSION_EXPIRE_ON_CLOSE' => 'false',
     'SESSION_SECURE_COOKIE' => 'true',
+    'SESSION_SAME_SITE' => 'lax',
     'CACHE_STORE' => 'array',
     'LOG_CHANNEL' => 'stderr',
     'DB_CONNECTION' => 'pgsql',
@@ -47,13 +52,14 @@ $envDefaults = [
 ];
 
 foreach ($envDefaults as $key => $value) {
-    if (!getenv($key)) {
+    $currentVal = getenv($key);
+    if ($currentVal === false || $currentVal === '') {
         putenv("{$key}={$value}");
     }
-    if (!isset($_ENV[$key])) {
+    if (!isset($_ENV[$key]) || $_ENV[$key] === '') {
         $_ENV[$key] = $value;
     }
-    if (!isset($_SERVER[$key])) {
+    if (!isset($_SERVER[$key]) || $_SERVER[$key] === '') {
         $_SERVER[$key] = $value;
     }
 }
