@@ -13,10 +13,13 @@
     <!-- Thanh Lọc Đa Doanh Nghiệp & Tìm Kiếm Nhanh -->
     <div class="card border-0 rounded-4 shadow-sm mb-4 bg-white" style="border: 0.0625rem solid var(--border-soft) !important;">
         <div class="card-body p-3 p-md-4">
-            <form action="{{ $isOut ? route('invoice.out') : route('invoice.in') }}" method="GET" class="row g-2 align-items-end">
+            <form action="{{ $isOut ? route('invoice.out') : route('invoice.in') }}" method="GET" id="filterInvoiceForm" class="row g-2 align-items-end">
+                <input type="hidden" name="from_date" id="filter_from_date" value="{{ $fromDate ?? '' }}">
+                <input type="hidden" name="to_date" id="filter_to_date" value="{{ $toDate ?? '' }}">
+
                 @if(Auth::check() && Auth::user()->isAdmin())
                     <!-- Chọn CTY (Chỉ hiển thị cho Quản trị viên) -->
-                    <div class="col-12 col-md-4 col-lg-3">
+                    <div class="col-12 col-md-4 col-lg-2">
                         <label class="form-label text-muted small mb-1 fw-semibold">
                             <i class="bi bi-building me-1 text-primary"></i> CTY:
                         </label>
@@ -34,7 +37,7 @@
                 @endif
 
                 <!-- Lọc theo phân loại Quan tâm / Không quan tâm -->
-                <div class="{{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-6 col-md-4 col-lg-2' : 'col-6 col-md-4 col-lg-3' }}">
+                <div class="{{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-6 col-md-4 col-lg-2' : 'col-6 col-md-3 col-lg-2' }}">
                     <label class="form-label text-muted small mb-1 fw-semibold">
                         <i class="bi bi-star me-1 text-warning"></i> Phân loại:
                     </label>
@@ -46,7 +49,7 @@
                 </div>
 
                 <!-- Lọc theo trạng thái thanh toán -->
-                <div class="{{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-6 col-md-4 col-lg-2' : 'col-6 col-md-4 col-lg-3' }}">
+                <div class="{{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-6 col-md-4 col-lg-2' : 'col-6 col-md-3 col-lg-2' }}">
                     <label class="form-label text-muted small mb-1 fw-semibold">
                         <i class="bi bi-funnel me-1 text-primary"></i> Trạng thái:
                     </label>
@@ -59,18 +62,49 @@
                     </select>
                 </div>
 
+                <!-- Nút Thống Kê Hóa Đơn Theo Ngày -->
+                <div class="{{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-12 col-md-4 col-lg-2' : 'col-12 col-md-6 col-lg-3' }}">
+                    <label class="form-label text-muted small mb-1 fw-semibold">
+                        <i class="bi bi-calendar-event me-1 text-primary"></i> Ngày lập:
+                    </label>
+                    @if(!empty($fromDate) || !empty($toDate))
+                        <button type="button" class="btn btn-sm btn-primary w-100 rounded-pill d-flex align-items-center justify-content-center gap-1 shadow-sm text-truncate px-2" style="height: 2.125rem;" data-bs-toggle="modal" data-bs-target="#modalDateStats" title="Đang lọc ngày. Bấm để đổi ngày hoặc bỏ lọc">
+                            <i class="bi bi-calendar-check-fill flex-shrink-0"></i>
+                            <span class="small fw-semibold text-truncate">
+                                @if($fromDate && $toDate && $fromDate === $toDate)
+                                    {{ \Carbon\Carbon::parse($fromDate)->format('d/m/Y') }}
+                                @elseif($fromDate && $toDate)
+                                    {{ \Carbon\Carbon::parse($fromDate)->format('d/m') }} - {{ \Carbon\Carbon::parse($toDate)->format('d/m/Y') }}
+                                @elseif($fromDate)
+                                    Từ {{ \Carbon\Carbon::parse($fromDate)->format('d/m/Y') }}
+                                @else
+                                    Đến {{ \Carbon\Carbon::parse($toDate)->format('d/m/Y') }}
+                                @endif
+                            </span>
+                        </button>
+                    @else
+                        <button type="button" class="btn btn-sm btn-outline-secondary bg-white w-100 rounded-pill d-flex align-items-center justify-content-center gap-1 shadow-none text-muted px-2" style="height: 2.125rem; border: 0.0625rem solid var(--border-soft);" data-bs-toggle="modal" data-bs-target="#modalDateStats" title="Thống kê hóa đơn theo ngày">
+                            <i class="bi bi-calendar3 text-primary flex-shrink-0"></i>
+                            <span class="small text-truncate">Thống kê theo ngày</span>
+                        </button>
+                    @endif
+                </div>
+
                 <!-- Tìm kiếm -->
-                <div class="{{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-12 col-md-8 col-lg-4' : 'col-12 col-md-8 col-lg-5' }}">
+                @php
+                    $hasFilter = !empty($search) || (!empty($companyId) && $companyId != 'all') || (!empty($status) && $status != 'all') || (!empty($concern) && $concern != 'all') || !empty($fromDate) || !empty($toDate);
+                @endphp
+                <div class="{{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-12 col-md-8 col-lg-3' : 'col-12 col-md-8 col-lg-4' }}">
                     <label class="form-label text-muted small mb-1 fw-semibold">
                         <i class="bi bi-search me-1 text-primary"></i> Tìm kiếm:
                     </label>
                     <div class="input-group input-group-sm">
                         <input type="text" name="search" class="form-control rounded-start-pill ps-3 shadow-none" placeholder="Số HĐ, tên đối tác, diễn giải..." value="{{ $search ?? '' }}">
-                        <button class="btn btn-soft-primary px-3 {{ (empty($search) && (empty($companyId) || $companyId == 'all') && (empty($status) || $status == 'all') && (empty($concern) || $concern == 'all')) ? 'rounded-end-pill' : '' }}" type="submit">
+                        <button class="btn btn-soft-primary px-3 {{ !$hasFilter ? 'rounded-end-pill' : '' }}" type="submit">
                             <i class="bi bi-search"></i> Lọc
                         </button>
-                        @if(!empty($search) || (!empty($companyId) && $companyId != 'all') || (!empty($status) && $status != 'all') || (!empty($concern) && $concern != 'all'))
-                            <a href="{{ $isOut ? route('invoice.out') : route('invoice.in') }}" class="btn btn-outline-secondary rounded-end-pill px-2 d-flex align-items-center" title="Đặt lại bộ lọc">
+                        @if($hasFilter)
+                            <a href="{{ $isOut ? route('invoice.out') : route('invoice.in') }}" class="btn btn-outline-secondary rounded-end-pill px-2 d-flex align-items-center" title="Đặt lại toàn bộ bộ lọc">
                                 <i class="bi bi-x-lg"></i>
                             </a>
                         @endif
@@ -86,6 +120,42 @@
             </form>
         </div>
     </div>
+
+    @if(!empty($fromDate) || !empty($toDate))
+        <!-- Banner thông báo đang lọc theo ngày -->
+        <div class="alert alert-info border-0 rounded-4 shadow-sm py-2 px-3 mb-4 d-flex align-items-center justify-content-between flex-wrap gap-2" style="background-color: var(--blue-soft-100); border: 0.0625rem solid var(--blue-soft-200) !important;">
+            <div class="d-flex align-items-center gap-2">
+                <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-white text-primary p-2 shadow-sm" style="width: 2rem; height: 2rem;">
+                    <i class="bi bi-calendar-check-fill"></i>
+                </span>
+                <div>
+                    <span class="fw-bold text-dark small">Đang thống kê theo ngày:</span>
+                    <span class="badge bg-primary rounded-pill px-2 py-1 ms-1 font-monospace">
+                        @if($fromDate && $toDate && $fromDate === $toDate)
+                            Ngày {{ \Carbon\Carbon::parse($fromDate)->format('d/m/Y') }}
+                        @elseif($fromDate && $toDate)
+                            {{ \Carbon\Carbon::parse($fromDate)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($toDate)->format('d/m/Y') }}
+                        @elseif($fromDate)
+                            Từ ngày {{ \Carbon\Carbon::parse($fromDate)->format('d/m/Y') }}
+                        @else
+                            Đến ngày {{ \Carbon\Carbon::parse($toDate)->format('d/m/Y') }}
+                        @endif
+                    </span>
+                    <span class="text-muted small ms-2 d-none d-md-inline">
+                        (Tìm thấy <strong>{{ $invoices->total() }}</strong> hóa đơn - Tổng: <strong class="text-primary">{{ number_format($totalAmount, 0, ',', '.') }} đ</strong>)
+                    </span>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-1">
+                <button type="button" class="btn btn-sm btn-white bg-white text-primary rounded-pill px-3 shadow-sm border" data-bs-toggle="modal" data-bs-target="#modalDateStats">
+                    <i class="bi bi-pencil-square me-1"></i> Đổi ngày
+                </button>
+                <a href="{{ request()->fullUrlWithQuery(['from_date' => null, 'to_date' => null]) }}" class="btn btn-sm btn-outline-danger bg-white rounded-pill px-3 shadow-sm" title="Hủy lọc ngày">
+                    <i class="bi bi-x-circle me-1"></i> Bỏ lọc ngày
+                </a>
+            </div>
+        </div>
+    @endif
 
     <!-- 4 THẺ THỐNG KÊ CHI TIẾT THEO LUỒNG HÓA ĐƠN -->
     <div class="row g-3 mb-4">
@@ -1050,8 +1120,191 @@
     </div>
 </div>
 
+<!-- Modal Thống Kê Hóa Đơn Theo Ngày -->
+<div class="modal fade" id="modalDateStats" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header bg-white border-bottom py-3 px-4">
+                <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2 mb-0 fs-6">
+                    <span class="rounded-circle p-2 d-inline-flex align-items-center justify-content-center" style="background-color: var(--blue-soft-100); color: var(--blue-dark); width: 2.25rem; height: 2.25rem;">
+                        <i class="bi bi-calendar-event"></i>
+                    </span>
+                    <span>Thống Kê Hóa Đơn Theo Ngày</span>
+                </h5>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Cách 1: Chọn một ngày cụ thể (trong quá khứ hoặc hôm nay) -->
+                <div class="mb-4">
+                    <label class="form-label fw-bold text-dark small mb-2 d-flex align-items-center gap-1">
+                        <i class="bi bi-calendar-check text-primary"></i> 1. Chọn Một Ngày Cụ Thể (Quá khứ hoặc Hôm nay):
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0"><i class="bi bi-calendar3 text-muted"></i></span>
+                        <input type="date" id="stats_single_date" class="form-control rounded-end-3 shadow-none" value="{{ ($fromDate && $toDate && $fromDate === $toDate) ? $fromDate : ($fromDate ?? '') }}">
+                    </div>
+                    <!-- Các nút chọn nhanh ngày đơn -->
+                    <div class="d-flex flex-wrap gap-1 mt-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-0" style="font-size: 0.78rem;" onclick="setStatsSingleDate('{{ date('Y-m-d') }}')">
+                            ⚡ Hôm nay
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-0" style="font-size: 0.78rem;" onclick="setStatsSingleDate('{{ date('Y-m-d', strtotime('-1 day')) }}')">
+                            ⚡ Hôm qua
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-0" style="font-size: 0.78rem;" onclick="setStatsSingleDate('{{ date('Y-m-d', strtotime('-2 days')) }}')">
+                            ⚡ Hôm kia
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-0" style="font-size: 0.78rem;" onclick="setStatsSingleDate('{{ date('Y-m-d', strtotime('-7 days')) }}')">
+                            ⚡ 7 ngày trước
+                        </button>
+                    </div>
+                </div>
+
+                <div class="position-relative text-center my-3">
+                    <hr class="border-secondary-subtle">
+                    <span class="position-absolute top-50 start-50 translate-middle bg-white px-3 text-muted small fw-semibold" style="font-size: 0.78rem;">
+                        HOẶC CHỌN KHOẢNG THỜI GIAN
+                    </span>
+                </div>
+
+                <!-- Cách 2: Chọn khoảng thời gian Từ ngày - Đến ngày -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-dark small mb-2 d-flex align-items-center gap-1">
+                        <i class="bi bi-calendar-range text-primary"></i> 2. Chọn Khoảng Thời Gian:
+                    </label>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label text-muted small mb-1" style="font-size: 0.75rem;">Từ ngày:</label>
+                            <input type="date" id="stats_from_date" class="form-control form-control-sm rounded-3 shadow-none" value="{{ ($fromDate && $toDate && $fromDate !== $toDate) ? $fromDate : '' }}">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted small mb-1" style="font-size: 0.75rem;">Đến ngày:</label>
+                            <input type="date" id="stats_to_date" class="form-control form-control-sm rounded-3 shadow-none" value="{{ ($fromDate && $toDate && $fromDate !== $toDate) ? $toDate : '' }}">
+                        </div>
+                    </div>
+                    <!-- Các nút chọn nhanh khoảng thời gian -->
+                    <div class="d-flex flex-wrap gap-1 mt-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-0" style="font-size: 0.78rem;" onclick="setStatsRange('{{ date('Y-m-d', strtotime('-6 days')) }}', '{{ date('Y-m-d') }}')">
+                            7 ngày qua
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-0" style="font-size: 0.78rem;" onclick="setStatsRange('{{ date('Y-m-d', strtotime('-29 days')) }}', '{{ date('Y-m-d') }}')">
+                            30 ngày qua
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-0" style="font-size: 0.78rem;" onclick="setStatsRange('{{ date('Y-m-01') }}', '{{ date('Y-m-t') }}')">
+                            Tháng này
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-0" style="font-size: 0.78rem;" onclick="setStatsRange('{{ date('Y-m-01', strtotime('first day of last month')) }}', '{{ date('Y-m-t', strtotime('last day of last month')) }}')">
+                            Tháng trước
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-0" style="font-size: 0.78rem;" onclick="setStatsRange('{{ date('Y-01-01') }}', '{{ date('Y-12-31') }}')">
+                            Năm {{ date('Y') }}
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-3 rounded-3 text-muted small mt-3" style="background-color: var(--blue-soft-50); font-size: 0.8rem; border: 0.0625rem solid var(--blue-soft-200);">
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="bi bi-info-circle-fill text-primary mt-1"></i>
+                        <div>
+                            Sau khi áp dụng, danh sách hóa đơn sẽ được lọc theo ngày lập và <strong>4 thẻ thống kê</strong> (Tổng tiền, Đã thanh toán, Còn thiếu, VAT) phía trên sẽ tự động tính toán lại chính xác.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top py-2 px-4 rounded-bottom-4 d-flex justify-content-between">
+                <div>
+                    @if(!empty($fromDate) || !empty($toDate))
+                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="clearDateStats()">
+                            <i class="bi bi-x-circle me-1"></i> Bỏ lọc ngày
+                        </button>
+                    @endif
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Đóng</button>
+                    <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 d-flex align-items-center gap-1 shadow-sm" onclick="applyDateStats()">
+                        <i class="bi bi-funnel-fill"></i>
+                        <span>Áp Dụng Thống Kê</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
+    // --- Xử lý Thống kê & Lọc Hóa Đơn Theo Ngày ---
+    function setStatsSingleDate(dateStr) {
+        document.getElementById('stats_single_date').value = dateStr;
+        document.getElementById('stats_from_date').value = '';
+        document.getElementById('stats_to_date').value = '';
+    }
+
+    function setStatsRange(fromStr, toStr) {
+        document.getElementById('stats_from_date').value = fromStr;
+        document.getElementById('stats_to_date').value = toStr;
+        document.getElementById('stats_single_date').value = '';
+    }
+
+    function applyDateStats() {
+        const singleDate = document.getElementById('stats_single_date').value;
+        const fromDate = document.getElementById('stats_from_date').value;
+        const toDate = document.getElementById('stats_to_date').value;
+
+        let finalFrom = '';
+        let finalTo = '';
+
+        if (singleDate) {
+            finalFrom = singleDate;
+            finalTo = singleDate;
+        } else {
+            finalFrom = fromDate;
+            finalTo = toDate;
+        }
+
+        document.getElementById('filter_from_date').value = finalFrom;
+        document.getElementById('filter_to_date').value = finalTo;
+
+        document.getElementById('filterInvoiceForm').submit();
+    }
+
+    function clearDateStats() {
+        document.getElementById('filter_from_date').value = '';
+        document.getElementById('filter_to_date').value = '';
+        document.getElementById('filterInvoiceForm').submit();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const singleInput = document.getElementById('stats_single_date');
+        const fromInput = document.getElementById('stats_from_date');
+        const toInput = document.getElementById('stats_to_date');
+
+        if (singleInput) {
+            singleInput.addEventListener('change', function() {
+                if (this.value) {
+                    if (fromInput) fromInput.value = '';
+                    if (toInput) toInput.value = '';
+                }
+            });
+        }
+
+        if (fromInput) {
+            fromInput.addEventListener('change', function() {
+                if (this.value && singleInput) {
+                    singleInput.value = '';
+                }
+            });
+        }
+
+        if (toInput) {
+            toInput.addEventListener('change', function() {
+                if (this.value && singleInput) {
+                    singleInput.value = '';
+                }
+            });
+        }
+    });
+
     function showPartnerDetail(partner) {
         if (!partner) return;
         const modal = new bootstrap.Modal(document.getElementById('modalPartnerDetail'));

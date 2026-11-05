@@ -52,6 +52,8 @@ class InvoiceController extends Controller
         $status = $request->get('status'); // unpaid, paid, all
         $search = $request->get('search');
         $concern = $request->get('concern'); // all, 1 (quan tâm), 0 (không quan tâm)
+        $fromDate = $request->get('from_date');
+        $toDate = $request->get('to_date');
 
         $query = Invoice::with(['company', 'partner', 'debt', 'attachments'])
             ->withCount('attachments')
@@ -71,6 +73,14 @@ class InvoiceController extends Controller
 
         if ($concern !== null && $concern !== '' && $concern !== 'all') {
             $query->where('is_concerned', (bool)$concern);
+        }
+
+        if ($fromDate) {
+            $query->whereDate('issue_date', '>=', $fromDate);
+        }
+
+        if ($toDate) {
+            $query->whereDate('issue_date', '<=', $toDate);
         }
 
         if ($search) {
@@ -93,6 +103,12 @@ class InvoiceController extends Controller
         }
         if ($partnerId && $partnerId !== 'all') {
             $statsQuery->where('partner_id', $partnerId);
+        }
+        if ($fromDate) {
+            $statsQuery->whereDate('issue_date', '>=', $fromDate);
+        }
+        if ($toDate) {
+            $statsQuery->whereDate('issue_date', '<=', $toDate);
         }
 
         $concernedCount = (clone $statsQuery)->where('is_concerned', true)->count();
@@ -120,6 +136,8 @@ class InvoiceController extends Controller
             'concernedCount',
             'unconcernedCount',
             'search',
+            'fromDate',
+            'toDate',
             'totalAmount',
             'totalPaid',
             'totalUnpaid',
