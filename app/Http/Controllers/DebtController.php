@@ -147,7 +147,8 @@ class DebtController extends Controller
         ]);
 
         // Nếu người dùng nhập đối tác mới ngay trong form
-        if (empty($validated['partner_id']) && !empty($validated['new_partner_name'])) {
+        $rawPartnerId = $validated['partner_id'] ?? null;
+        if (($rawPartnerId === 'NEW' || empty($rawPartnerId)) && !empty($validated['new_partner_name'])) {
             $partner = Partner::create([
                 'company_id' => $validated['company_id'],
                 'name' => trim($validated['new_partner_name']),
@@ -155,12 +156,14 @@ class DebtController extends Controller
                 'phone' => $request->input('new_partner_phone'),
             ]);
             $partnerId = $partner->id;
+        } elseif (is_numeric($rawPartnerId)) {
+            $partnerId = (int)$rawPartnerId;
         } else {
-            $partnerId = $validated['partner_id'];
+            $partnerId = null;
         }
 
         if (!$partnerId) {
-            return back()->with('error', 'Vui lòng chọn hoặc nhập tên đối tác/khách hàng.')->withInput();
+            return back()->with('error', 'Vui lòng chọn hoặc nhập tên đối tác/khách hàng hợp lệ.')->withInput();
         }
 
         // Tự động sinh mã phiếu

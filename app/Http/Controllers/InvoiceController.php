@@ -179,7 +179,8 @@ class InvoiceController extends Controller
         }
 
         // Tạo đối tác mới nhanh nếu có
-        if (empty($validated['partner_id']) && !empty($validated['new_partner_name'])) {
+        $rawPartnerId = $validated['partner_id'] ?? null;
+        if (($rawPartnerId === 'NEW' || empty($rawPartnerId)) && !empty($validated['new_partner_name'])) {
             $partner = Partner::create([
                 'company_id' => $validated['company_id'],
                 'name' => trim($validated['new_partner_name']),
@@ -187,19 +188,40 @@ class InvoiceController extends Controller
                 'phone' => $request->input('new_partner_phone'),
             ]);
             $partnerId = $partner->id;
+        } elseif (is_numeric($rawPartnerId)) {
+            $partnerId = (int)$rawPartnerId;
         } else {
-            $partnerId = $validated['partner_id'];
+            $partnerId = null;
         }
 
         if (!$partnerId) {
-            return back()->with('error', 'Vui lòng chọn hoặc nhập tên đối tác/khách hàng.')->withInput();
+            return back()->with('error', 'Vui lòng chọn hoặc nhập tên đối tác/khách hàng hợp lệ.')->withInput();
         }
 
-        // Tự sinh số hóa đơn nếu bỏ trống
-        $invoiceNumber = $validated['invoice_number'];
+        // Tự sinh số hóa đơn nếu bỏ trống hoặc kiểm tra trùng số hóa đơn
+        $invoiceNumber = trim((string)($validated['invoice_number'] ?? ''));
         if (empty($invoiceNumber)) {
             $prefix = $validated['type'] === 'out' ? 'HD-XUAT' : 'HD-VAO';
             $invoiceNumber = $prefix . '-' . date('ymd') . '-' . rand(100, 999);
+            while (Invoice::where('invoice_number', $invoiceNumber)->exists()) {
+                $invoiceNumber = $prefix . '-' . date('ymd') . '-' . rand(1000, 9999);
+            }
+        } else {
+            // Kiểm tra trùng lặp trong cùng công ty / đối tác
+            $dupQuery = Invoice::where('company_id', $validated['company_id'])
+                ->where('type', $validated['type'])
+                ->where('invoice_number', $invoiceNumber);
+
+            if ($validated['type'] === 'in') {
+                $dupQuery->where('partner_id', $partnerId);
+            }
+
+            if ($dupQuery->exists()) {
+                $msg = $validated['type'] === 'out'
+                    ? "Số hóa đơn [{$invoiceNumber}] đã tồn tại trong công ty này. Vui lòng nhập số khác."
+                    : "Đối tác này đã có hóa đơn số [{$invoiceNumber}]. Vui lòng nhập số khác.";
+                return back()->with('error', $msg)->withInput();
+            }
         }
 
         $subtotal = (float)$validated['subtotal'];
@@ -243,6 +265,9 @@ class InvoiceController extends Controller
             if (!empty($validated['sync_debt'])) {
                 $debtType = $validated['type'] === 'out' ? 'receivable' : 'payable';
                 $debtCode = 'CN-' . ($debtType === 'receivable' ? 'THU' : 'TRA') . '-' . date('ymd') . '-' . rand(100, 999);
+                while (Debt::where('code', $debtCode)->exists()) {
+                    $debtCode = 'CN-' . ($debtType === 'receivable' ? 'THU' : 'TRA') . '-' . date('ymd') . '-' . rand(1000, 9999);
+                }
 
                 $debt = Debt::create([
                     'code' => $debtCode,
@@ -310,6 +335,22 @@ class InvoiceController extends Controller
             'status' => 'nullable|in:unpaid,partial,paid,cancelled',
             'notes' => 'nullable|string',
         ]);
+
+        $dupQuery = Invoice::where('company_id', $validated['company_id'])
+            ->where('type', $validated['type'])
+            ->where('invoice_number', $validated['invoice_number'])
+            ->where('id', '!=', $id);
+
+        if ($validated['type'] === 'in') {
+            $dupQuery->where('partner_id', $validated['partner_id']);
+        }
+
+        if ($dupQuery->exists()) {
+            $msg = $validated['type'] === 'out'
+                ? "Số hóa đơn [{$validated['invoice_number']}] đã tồn tại trong công ty này."
+                : "Đối tác này đã có hóa đơn số [{$validated['invoice_number']}].";
+            return back()->with('error', $msg)->withInput();
+        }
 
         $subtotal = (float)$validated['subtotal'];
         $taxRate = (float)$validated['tax_rate'];
