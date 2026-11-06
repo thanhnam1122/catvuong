@@ -20,6 +20,7 @@ class Invoice extends Model
         'tax_amount',
         'total_amount',
         'paid_amount',
+        'paid_date',
         'issue_date',
         'due_date',
         'status', // unpaid, paid, cancelled
@@ -33,6 +34,7 @@ class Invoice extends Model
         'tax_amount' => 'decimal:2',
         'total_amount' => 'decimal:2',
         'paid_amount' => 'decimal:2',
+        'paid_date' => 'date',
         'issue_date' => 'date',
         'due_date' => 'date',
     ];

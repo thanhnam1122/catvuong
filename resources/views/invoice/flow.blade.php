@@ -16,14 +16,16 @@
             <form action="{{ $isOut ? route('invoice.out') : route('invoice.in') }}" method="GET" id="filterInvoiceForm" class="row g-2 align-items-end">
                 <input type="hidden" name="from_date" id="filter_from_date" value="{{ $fromDate ?? '' }}">
                 <input type="hidden" name="to_date" id="filter_to_date" value="{{ $toDate ?? '' }}">
+                <input type="hidden" name="sort_by" value="{{ $sortBy ?? '' }}">
+                <input type="hidden" name="order" value="{{ $order ?? '' }}">
 
                 @if(Auth::check() && Auth::user()->isAdmin())
                     <!-- Chọn CTY (Chỉ hiển thị cho Quản trị viên) -->
-                    <div class="col-12 col-md-4 col-lg-2">
+                    <div class="col-12 col-sm-6 col-md-3 col-lg-2">
                         <label class="form-label text-muted small mb-1 fw-semibold">
                             <i class="bi bi-building me-1 text-primary"></i> CTY:
                         </label>
-                        <select name="company_id" class="form-select form-select-sm rounded-3 shadow-none" onchange="this.form.submit()">
+                        <select name="company_id" class="form-select form-select-sm rounded-3 shadow-none text-truncate" onchange="this.form.submit()">
                             <option value="all" {{ ($companyId == 'all' || empty($companyId)) ? 'selected' : '' }}>
                                 🏢 Tất cả CTY ({{ $companies->count() }})
                             </option>
@@ -34,10 +36,44 @@
                             @endforeach
                         </select>
                     </div>
+
+                    <!-- Lọc theo Doanh Nghiệp (Đối tác - Admin) -->
+                    <div class="col-12 col-sm-6 col-md-3 col-lg-2">
+                        <label class="form-label text-muted small mb-1 fw-semibold">
+                            <i class="bi bi-briefcase me-1 text-primary"></i> Doanh nghiệp:
+                        </label>
+                        <select name="partner_id" class="form-select form-select-sm rounded-3 shadow-none text-truncate" onchange="this.form.submit()">
+                            <option value="all" {{ (empty($partnerId) || $partnerId == 'all') ? 'selected' : '' }}>
+                                🏢 Tất cả doanh nghiệp ({{ $partners->count() }})
+                            </option>
+                            @foreach($partners as $p)
+                                <option value="{{ $p->id }}" {{ $partnerId == $p->id ? 'selected' : '' }}>
+                                    {{ $p->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                @else
+                    <!-- Lọc theo Doanh Nghiệp (Đối tác - Người dùng thường) -->
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                        <label class="form-label text-muted small mb-1 fw-semibold">
+                            <i class="bi bi-briefcase me-1 text-primary"></i> Doanh nghiệp:
+                        </label>
+                        <select name="partner_id" class="form-select form-select-sm rounded-3 shadow-none text-truncate" onchange="this.form.submit()">
+                            <option value="all" {{ (empty($partnerId) || $partnerId == 'all') ? 'selected' : '' }}>
+                                🏢 Tất cả doanh nghiệp ({{ $partners->count() }})
+                            </option>
+                            @foreach($partners as $p)
+                                <option value="{{ $p->id }}" {{ $partnerId == $p->id ? 'selected' : '' }}>
+                                    {{ $p->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
                 @endif
 
                 <!-- Lọc theo phân loại Quan tâm / Không quan tâm -->
-                <div class="{{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-6 col-md-4 col-lg-2' : 'col-6 col-md-3 col-lg-2' }}">
+                <div class="col-6 col-sm-6 col-md-2 col-lg-auto" style="min-width: 8.5rem;">
                     <label class="form-label text-muted small mb-1 fw-semibold">
                         <i class="bi bi-star me-1 text-warning"></i> Phân loại:
                     </label>
@@ -49,7 +85,7 @@
                 </div>
 
                 <!-- Lọc theo trạng thái thanh toán -->
-                <div class="{{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-6 col-md-4 col-lg-2' : 'col-6 col-md-3 col-lg-2' }}">
+                <div class="col-6 col-sm-6 col-md-2 col-lg-auto" style="min-width: 9rem;">
                     <label class="form-label text-muted small mb-1 fw-semibold">
                         <i class="bi bi-funnel me-1 text-primary"></i> Trạng thái:
                     </label>
@@ -63,7 +99,7 @@
                 </div>
 
                 <!-- Nút Thống Kê Hóa Đơn Theo Ngày -->
-                <div class="{{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-12 col-md-4 col-lg-2' : 'col-12 col-md-6 col-lg-3' }}">
+                <div class="col-12 col-sm-6 col-md-4 col-lg-auto" style="min-width: 9.5rem;">
                     <label class="form-label text-muted small mb-1 fw-semibold">
                         <i class="bi bi-calendar-event me-1 text-primary"></i> Ngày lập:
                     </label>
@@ -90,11 +126,11 @@
                     @endif
                 </div>
 
-                <!-- Tìm kiếm -->
+                <!-- Tìm kiếm (Tự động co giãn lấp đầy toàn bộ ô) -->
                 @php
-                    $hasFilter = !empty($search) || (!empty($companyId) && $companyId != 'all') || (!empty($status) && $status != 'all') || (!empty($concern) && $concern != 'all') || !empty($fromDate) || !empty($toDate);
+                    $hasFilter = !empty($search) || (!empty($companyId) && $companyId != 'all') || (!empty($partnerId) && $partnerId != 'all') || (!empty($status) && $status != 'all') || (!empty($concern) && $concern != 'all') || !empty($fromDate) || !empty($toDate) || !empty($sortBy);
                 @endphp
-                <div class="{{ (Auth::check() && Auth::user()->isAdmin()) ? 'col-12 col-md-8 col-lg-3' : 'col-12 col-md-8 col-lg-4' }}">
+                <div class="col-12 col-md col-lg" style="min-width: 12rem;">
                     <label class="form-label text-muted small mb-1 fw-semibold">
                         <i class="bi bi-search me-1 text-primary"></i> Tìm kiếm:
                     </label>
@@ -112,8 +148,8 @@
                 </div>
 
                 <!-- Nút thêm nhanh thẳng hàng -->
-                <div class="col-12 col-md-4 col-lg-1">
-                    <button type="button" class="btn btn-theme-primary btn-sm w-100 rounded-pill d-flex align-items-center justify-content-center gap-1 shadow-sm" style="height: 2.125rem;" data-bs-toggle="modal" data-bs-target="#modalCreateInvoiceFlow" title="Tạo hóa đơn mới">
+                <div class="col-auto">
+                    <button type="button" class="btn btn-theme-primary btn-sm px-3 rounded-pill d-inline-flex align-items-center justify-content-center gap-1 shadow-sm text-nowrap" style="height: 2.125rem;" data-bs-toggle="modal" data-bs-target="#modalCreateInvoiceFlow" title="Tạo hóa đơn mới">
                         <i class="bi bi-plus-lg"></i> <span>Thêm</span>
                     </button>
                 </div>
@@ -268,7 +304,22 @@
             <table class="table table-custom align-middle">
                 <thead>
                     <tr>
-                        <th style="width: 8.5rem;">Số Hóa Đơn</th>
+                        <th style="width: 8.5rem;">
+                            @php
+                                $isSortedByNumber = ($sortBy === 'number');
+                                $nextOrder = ($isSortedByNumber && $order === 'asc') ? 'desc' : 'asc';
+                            @endphp
+                            <a href="{{ request()->fullUrlWithQuery(['sort_by' => 'number', 'order' => $nextOrder]) }}" 
+                               class="text-decoration-none text-dark d-inline-flex align-items-center gap-1 shadow-none" 
+                               title="{{ $isSortedByNumber ? ($order === 'asc' ? 'Đang lọc: Bé đến lớn (Bấm để đổi sang Lớn đến bé)' : 'Đang lọc: Lớn đến bé (Bấm để đổi sang Bé đến lớn)') : 'Bấm để lọc theo số hóa đơn' }}">
+                                <span>Số Hóa Đơn</span>
+                                @if($isSortedByNumber)
+                                    <i class="bi {{ $order === 'asc' ? 'bi-sort-numeric-down' : 'bi-sort-numeric-down-alt' }} text-primary" style="font-size: 0.8rem;"></i>
+                                @else
+                                    <i class="bi bi-arrow-down-up text-muted opacity-50" style="font-size: 0.7rem;"></i>
+                                @endif
+                            </a>
+                        </th>
                         @if(Auth::check() && Auth::user()->isAdmin())
                             <th style="width: 11.5rem;">CTY</th>
                         @endif
@@ -393,8 +444,15 @@
                             </td>
 
                             <!-- Đã thanh toán -->
-                            <td class="text-end text-success fw-medium">
-                                {{ number_format($inv->paid_amount, 0, ',', '.') }} đ
+                            <td class="text-end">
+                                <div class="text-success fw-medium font-monospace">
+                                    {{ number_format($inv->paid_amount, 0, ',', '.') }} đ
+                                </div>
+                                @if($inv->paid_date)
+                                    <div class="text-muted small" style="font-size: 0.73rem;">
+                                        <i class="bi bi-calendar2-check text-success me-1"></i>{{ \Carbon\Carbon::parse($inv->paid_date)->format('d/m/Y') }}
+                                    </div>
+                                @endif
                             </td>
 
                             <!-- Còn lại -->
@@ -554,16 +612,16 @@
                                 <label class="form-label fw-semibold text-dark small mb-1">
                                     Thuộc CTY <span class="text-danger">*</span>
                                 </label>
-                                <select name="company_id" class="form-select rounded-3 shadow-none" required>
+                                <select name="company_id" id="flow_company_select" class="form-select rounded-3 shadow-none" required>
                                     @foreach($companies as $comp)
-                                        <option value="{{ $comp->id }}" {{ $companyId == $comp->id ? 'selected' : '' }}>
+                                        <option value="{{ $comp->id }}" {{ ($companyId == $comp->id) ? 'selected' : '' }}>
                                             {{ $comp->name }} {{ $comp->code ? '('.$comp->code.')' : '' }}
                                         </option>
                                     @endforeach
                                 </select>
                             </div>
                         @else
-                            <input type="hidden" name="company_id" value="{{ Auth::user()->company_id }}">
+                            <input type="hidden" name="company_id" id="flow_company_select" value="{{ Auth::user()->company_id }}">
                         @endif
 
                         <!-- Doanh nghiệp / Đối tác -->
@@ -605,8 +663,8 @@
                             <input type="text" name="title" class="form-control rounded-3 shadow-none" placeholder="Ví dụ: Cung cấp hàng hóa đợt 1, mua linh kiện văn phòng..." required>
                         </div>
 
-                        <!-- Tiền trước thuế & VAT -->
-                        <div class="col-12 col-md-6">
+                        <!-- Tiền trước thuế & VAT & Tiền thuế -->
+                        <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold text-dark small mb-1">
                                 Tiền trước thuế (VNĐ) <span class="text-danger">*</span>
                             </label>
@@ -616,14 +674,24 @@
                             </div>
                         </div>
 
-                        <div class="col-12 col-md-6">
+                        <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold text-dark small mb-1">Thuế suất VAT (%)</label>
-                            <select name="tax_rate" id="flow_tax_rate" class="form-select rounded-3 shadow-none" onchange="calculateFlowInvoiceTotal()">
+                            <select name="tax_rate" id="flow_tax_rate" class="form-select rounded-3 shadow-none" onchange="calculateFlowInvoiceTotal(true)">
                                 <option value="10">10% (Thuế GTGT phổ thông)</option>
                                 <option value="8">8% (Thuế GTGT ưu đãi)</option>
                                 <option value="5">5% (Thuế GTGT 5%)</option>
                                 <option value="0">0% (Không chịu thuế)</option>
                             </select>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold text-dark small mb-1">
+                                Tiền thuế VAT (VNĐ) <span class="text-muted fw-normal small">(tự tính / sửa)</span>
+                            </label>
+                            <div class="input-group">
+                                <input type="text" inputmode="numeric" name="tax_amount" id="flow_tax_amount" class="form-control rounded-start-3 shadow-none currency-input" placeholder="0">
+                                <span class="input-group-text bg-light text-muted rounded-end-3">đ</span>
+                            </div>
                         </div>
 
                         <!-- Tóm tắt số tiền -->
@@ -662,16 +730,20 @@
                             </select>
                         </div>
 
-                        <!-- Ngày lập & Ngày hẹn trả & Phân loại theo dõi -->
-                        <div class="col-12 col-md-4">
+                        <!-- Ngày lập & Ngày hẹn trả & Ngày thanh toán & Phân loại theo dõi -->
+                        <div class="col-12 col-md-3">
                             <label class="form-label fw-semibold text-dark small mb-1">Ngày lập hóa đơn <span class="text-danger">*</span></label>
                             <input type="date" name="issue_date" class="form-control rounded-3 shadow-none" value="{{ date('Y-m-d') }}" required>
                         </div>
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-md-3">
                             <label class="form-label fw-semibold text-dark small mb-1">Hạn thanh toán</label>
                             <input type="date" name="due_date" class="form-control rounded-3 shadow-none">
                         </div>
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-md-3">
+                            <label class="form-label fw-semibold text-success small mb-1">Ngày thanh toán (nếu có)</label>
+                            <input type="date" name="paid_date" id="flow_create_paid_date" class="form-control rounded-3 shadow-none">
+                        </div>
+                        <div class="col-12 col-md-3">
                             <label class="form-label fw-semibold text-dark small mb-1">
                                 Phân loại theo dõi <span class="text-danger">*</span>
                             </label>
@@ -765,6 +837,13 @@
                         </div>
                     </div>
 
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-dark small mb-1">
+                            Ngày thanh toán <span class="text-danger">*</span>
+                        </label>
+                        <input type="date" name="payment_date" id="invPayDate" class="form-control rounded-3 shadow-none" value="{{ date('Y-m-d') }}" required>
+                    </div>
+
                     <div class="mb-0">
                         <label class="form-label fw-semibold text-dark small mb-1">Ghi chú thanh toán</label>
                         <textarea name="notes" class="form-control rounded-3 shadow-none" rows="2" placeholder="Ví dụ: Chuyển khoản đợt 1, tiền mặt..."></textarea>
@@ -828,11 +907,11 @@
                             <label class="form-label fw-semibold text-dark small mb-1">Nội dung diễn giải</label>
                             <input type="text" name="title" id="edit_inv_title" class="form-control rounded-3 shadow-none" required>
                         </div>
-                        <div class="col-12 col-md-6">
+                        <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold text-dark small mb-1">Tiền trước thuế (VNĐ)</label>
                             <input type="text" inputmode="numeric" name="subtotal" id="edit_inv_subtotal" class="form-control fw-bold rounded-3 shadow-none currency-input" required>
                         </div>
-                        <div class="col-12 col-md-6">
+                        <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold text-dark small mb-1">Thuế suất VAT (%)</label>
                             <select name="tax_rate" id="edit_inv_tax_rate" class="form-select rounded-3 shadow-none">
                                 <option value="10">10%</option>
@@ -840,6 +919,20 @@
                                 <option value="5">5%</option>
                                 <option value="0">0%</option>
                             </select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold text-dark small mb-1">
+                                Tiền thuế VAT (VNĐ) <span class="text-muted fw-normal small">(tự sửa)</span>
+                            </label>
+                            <input type="text" inputmode="numeric" name="tax_amount" id="edit_inv_tax_amount" class="form-control rounded-3 shadow-none currency-input">
+                        </div>
+
+                        <!-- Tóm tắt Tổng thanh toán khi sửa -->
+                        <div class="col-12">
+                            <div class="p-2 px-3 rounded-3 border d-flex justify-content-between align-items-center" style="background-color: var(--blue-soft-50);">
+                                <span class="text-muted small">TỔNG THANH TOÁN (Tiền hàng + VAT):</span>
+                                <span id="edit_inv_preview_total" class="fw-bold text-primary fs-5 font-monospace">0 đ</span>
+                            </div>
                         </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold text-dark small mb-1">Đã thanh toán (VNĐ)</label>
@@ -854,15 +947,21 @@
                                 <option value="cancelled">❌ Đã hủy</option>
                             </select>
                         </div>
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-md-3">
                             <label class="form-label fw-semibold text-dark small mb-1">Ngày lập</label>
                             <input type="date" name="issue_date" id="edit_inv_issue_date" class="form-control rounded-3 shadow-none" required>
                         </div>
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-md-3">
                             <label class="form-label fw-semibold text-dark small mb-1">Hạn trả</label>
                             <input type="date" name="due_date" id="edit_inv_due_date" class="form-control rounded-3 shadow-none">
                         </div>
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-md-3">
+                            <label class="form-label fw-semibold text-success small mb-1">
+                                <i class="bi bi-calendar-check me-1"></i> Ngày thanh toán
+                            </label>
+                            <input type="date" name="paid_date" id="edit_inv_paid_date" class="form-control rounded-3 shadow-none">
+                        </div>
+                        <div class="col-12 col-md-3">
                             <label class="form-label fw-semibold text-dark small mb-1">Phân loại theo dõi</label>
                             <select name="is_concerned" id="edit_inv_is_concerned" class="form-select rounded-3 shadow-none">
                                 <option value="1">⭐ Quan tâm</option>
@@ -1347,10 +1446,19 @@
 
         modal.show();
     }
+
     function formatNumberWithCommas(value) {
         if (value === null || value === undefined || value === '') return '';
-        let clean = value.toString().replace(/[^0-9]/g, '');
+        let str = value.toString().trim();
+        if (/^\d+\.\d+$/.test(str)) {
+            let num = Math.round(parseFloat(str));
+            if (!isNaN(num)) {
+                str = num.toString();
+            }
+        }
+        let clean = str.replace(/[^0-9]/g, '');
         if (!clean) return '';
+        clean = clean.replace(/^0+(?=\d)/, '');
         return clean.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     }
 
@@ -1366,11 +1474,19 @@
             e.target.value = formatNumberWithCommas(rawVal);
 
             if (e.target.id === 'flow_subtotal') {
-                calculateFlowInvoiceTotal();
+                calculateFlowInvoiceTotal(true);
+            } else if (e.target.id === 'flow_tax_amount') {
+                calculateFlowInvoiceTotal(false);
             } else if (e.target.id === 'flow_create_paid') {
                 updateCreatePaidState();
             } else if (e.target.id === 'invPayInputAmount') {
                 previewPaymentRemaining();
+            } else if (e.target.id === 'edit_inv_subtotal') {
+                recalcEditInvoiceTotal(true);
+                syncEditPaidWithTotal();
+            } else if (e.target.id === 'edit_inv_tax_amount') {
+                recalcEditInvoiceTotal(false);
+                syncEditPaidWithTotal();
             }
         }
     });
@@ -1423,10 +1539,17 @@
     setupPartnerFilter('flow_company_select', 'flow_partner_select');
     setupPartnerFilter('edit_inv_company_id', 'edit_inv_partner_id');
 
-    function calculateFlowInvoiceTotal() {
+    function calculateFlowInvoiceTotal(autoRecalcTax = false) {
         const subtotal = parseNumberFromCommas(document.getElementById('flow_subtotal').value);
         const rate = parseFloat(document.getElementById('flow_tax_rate').value) || 0;
-        const tax = Math.round(subtotal * (rate / 100));
+        const taxInput = document.getElementById('flow_tax_amount');
+        let tax = 0;
+        if (autoRecalcTax || (taxInput && !taxInput.value)) {
+            tax = Math.round(subtotal * (rate / 100));
+            if (taxInput) taxInput.value = formatNumberWithCommas(tax);
+        } else if (taxInput) {
+            tax = parseNumberFromCommas(taxInput.value);
+        }
         const total = subtotal + tax;
 
         document.getElementById('flow_preview_tax').textContent = new Intl.NumberFormat('vi-VN').format(tax) + ' đ';
@@ -1436,8 +1559,9 @@
 
     function updateCreatePaidState() {
         const subtotal = parseNumberFromCommas(document.getElementById('flow_subtotal').value);
-        const rate = parseFloat(document.getElementById('flow_tax_rate').value) || 0;
-        const total = subtotal + Math.round(subtotal * (rate / 100));
+        const taxInput = document.getElementById('flow_tax_amount');
+        const tax = parseNumberFromCommas(taxInput ? taxInput.value : 0);
+        const total = subtotal + tax;
         const paidInput = document.getElementById('flow_create_paid');
         const paid = parseNumberFromCommas(paidInput ? paidInput.value : 0);
         const statusSelect = document.getElementById('flow_status_select');
@@ -1458,6 +1582,46 @@
                 statusSelect.value = 'unpaid';
             }
         }
+    }
+
+    const flowStatusSelect = document.getElementById('flow_status_select');
+    const flowCreatePaidDate = document.getElementById('flow_create_paid_date');
+    if (flowStatusSelect) {
+        flowStatusSelect.addEventListener('change', function() {
+            const subtotal = parseNumberFromCommas(document.getElementById('flow_subtotal').value);
+            const taxInput = document.getElementById('flow_tax_amount');
+            const tax = parseNumberFromCommas(taxInput ? taxInput.value : 0);
+            const total = subtotal + tax;
+            const paidInput = document.getElementById('flow_create_paid');
+            if (this.value === 'paid') {
+                if (paidInput) paidInput.value = formatNumberWithCommas(total);
+                if (flowCreatePaidDate && !flowCreatePaidDate.value) {
+                    flowCreatePaidDate.value = new Date().toISOString().substring(0, 10);
+                }
+            } else if (this.value === 'unpaid') {
+                if (paidInput) paidInput.value = '0';
+                if (flowCreatePaidDate) flowCreatePaidDate.value = '';
+            }
+            updateCreatePaidState();
+        });
+    }
+
+    if (flowCreatePaidDate) {
+        flowCreatePaidDate.addEventListener('change', function() {
+            if (this.value) {
+                const paidInput = document.getElementById('flow_create_paid');
+                const currentPaid = parseNumberFromCommas(paidInput ? paidInput.value : 0);
+                if (currentPaid <= 0 || (flowStatusSelect && flowStatusSelect.value === 'unpaid')) {
+                    const subtotal = parseNumberFromCommas(document.getElementById('flow_subtotal').value);
+                    const taxInput = document.getElementById('flow_tax_amount');
+                    const tax = parseNumberFromCommas(taxInput ? taxInput.value : 0);
+                    const total = subtotal + tax;
+                    if (paidInput) paidInput.value = formatNumberWithCommas(total);
+                    if (flowStatusSelect) flowStatusSelect.value = 'paid';
+                    updateCreatePaidState();
+                }
+            }
+        });
     }
 
     const flowPartnerSelect = document.getElementById('flow_partner_select');
@@ -1493,6 +1657,10 @@
         document.getElementById('invPayRemaining').textContent = new Intl.NumberFormat('vi-VN').format(currentInvoiceRemaining) + ' đ';
 
         document.getElementById('invPayInputAmount').value = formatNumberWithCommas(currentInvoiceRemaining);
+        const payDateInput = document.getElementById('invPayDate');
+        if (payDateInput) {
+            payDateInput.value = new Date().toISOString().substring(0, 10);
+        }
         previewPaymentRemaining();
 
         modal.show();
@@ -1536,7 +1704,9 @@
         document.getElementById('edit_inv_title').value = inv.title;
         document.getElementById('edit_inv_subtotal').value = formatNumberWithCommas(inv.subtotal);
         document.getElementById('edit_inv_tax_rate').value = parseInt(inv.tax_rate);
+        document.getElementById('edit_inv_tax_amount').value = formatNumberWithCommas(inv.tax_amount || 0);
         document.getElementById('edit_inv_paid_amount').value = formatNumberWithCommas(inv.paid_amount || 0);
+        document.getElementById('edit_inv_paid_date').value = inv.paid_date ? inv.paid_date.substring(0, 10) : '';
         document.getElementById('edit_inv_issue_date').value = inv.issue_date ? inv.issue_date.substring(0, 10) : '';
         document.getElementById('edit_inv_due_date').value = inv.due_date ? inv.due_date.substring(0, 10) : '';
         document.getElementById('edit_inv_status').value = inv.status;
@@ -1548,7 +1718,98 @@
             editConcernSelect.value = concernVal;
         }
 
+        recalcEditInvoiceTotal(false);
         modal.show();
+    }
+
+    function recalcEditInvoiceTotal(autoRecalcTax = false) {
+        const subtotal = parseNumberFromCommas(document.getElementById('edit_inv_subtotal')?.value || 0);
+        const rate = parseFloat(document.getElementById('edit_inv_tax_rate')?.value || 0) || 0;
+        const taxInput = document.getElementById('edit_inv_tax_amount');
+        let tax = 0;
+        if (autoRecalcTax || (taxInput && !taxInput.value)) {
+            tax = Math.round(subtotal * (rate / 100));
+            if (taxInput) taxInput.value = formatNumberWithCommas(tax);
+        } else if (taxInput) {
+            tax = parseNumberFromCommas(taxInput.value);
+        }
+        const total = subtotal + tax;
+        const previewEl = document.getElementById('edit_inv_preview_total');
+        if (previewEl) {
+            previewEl.textContent = new Intl.NumberFormat('vi-VN').format(total) + ' đ';
+        }
+        return total;
+    }
+
+    function getEditInvoiceTotal() {
+        return recalcEditInvoiceTotal(false);
+    }
+
+    function syncEditPaidWithTotal() {
+        const statusSelect = document.getElementById('edit_inv_status');
+        const paidInput = document.getElementById('edit_inv_paid_amount');
+        if (statusSelect && statusSelect.value === 'paid' && paidInput) {
+            paidInput.value = formatNumberWithCommas(getEditInvoiceTotal());
+        }
+    }
+
+    document.getElementById('edit_inv_tax_rate')?.addEventListener('change', function() {
+        recalcEditInvoiceTotal(true);
+        syncEditPaidWithTotal();
+    });
+
+    const editStatusSelect = document.getElementById('edit_inv_status');
+    const editPaidInput = document.getElementById('edit_inv_paid_amount');
+    const editPaidDateInput = document.getElementById('edit_inv_paid_date');
+
+    if (editStatusSelect) {
+        editStatusSelect.addEventListener('change', function() {
+            const total = getEditInvoiceTotal();
+            if (this.value === 'paid') {
+                if (editPaidInput) editPaidInput.value = formatNumberWithCommas(total);
+                if (editPaidDateInput && !editPaidDateInput.value) {
+                    editPaidDateInput.value = new Date().toISOString().substring(0, 10);
+                }
+            } else if (this.value === 'unpaid') {
+                if (editPaidInput) editPaidInput.value = '0';
+                if (editPaidDateInput) editPaidDateInput.value = '';
+            }
+        });
+    }
+
+    if (editPaidDateInput) {
+        editPaidDateInput.addEventListener('change', function() {
+            if (this.value) {
+                const currentPaid = parseNumberFromCommas(editPaidInput ? editPaidInput.value : 0);
+                if (currentPaid <= 0 || (editStatusSelect && editStatusSelect.value === 'unpaid')) {
+                    const total = getEditInvoiceTotal();
+                    if (editPaidInput) editPaidInput.value = formatNumberWithCommas(total);
+                    if (editStatusSelect) editStatusSelect.value = 'paid';
+                }
+            }
+        });
+    }
+
+    if (editPaidInput) {
+        editPaidInput.addEventListener('input', function() {
+            const total = getEditInvoiceTotal();
+            const paid = parseNumberFromCommas(this.value);
+            if (editStatusSelect) {
+                if (paid >= total && total > 0) {
+                    editStatusSelect.value = 'paid';
+                    if (editPaidDateInput && !editPaidDateInput.value) {
+                        editPaidDateInput.value = new Date().toISOString().substring(0, 10);
+                    }
+                } else if (paid > 0) {
+                    editStatusSelect.value = 'partial';
+                    if (editPaidDateInput && !editPaidDateInput.value) {
+                        editPaidDateInput.value = new Date().toISOString().substring(0, 10);
+                    }
+                } else {
+                    editStatusSelect.value = 'unpaid';
+                }
+            }
+        });
     }
 
     function toggleInvoiceConcern(invoiceId) {

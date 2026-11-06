@@ -45,7 +45,11 @@ class InvoiceController extends Controller
         } else {
             $companyId = $request->get('company_id');
             $companies = Company::orderBy('name')->get();
-            $partners = Partner::orderBy('name')->get();
+            if ($companyId && $companyId !== 'all') {
+                $partners = Partner::where('company_id', $companyId)->orderBy('name')->get();
+            } else {
+                $partners = Partner::orderBy('name')->get();
+            }
         }
 
         $partnerId = $request->get('partner_id');
@@ -54,6 +58,8 @@ class InvoiceController extends Controller
         $concern = $request->get('concern'); // all, 1 (quan tâm), 0 (không quan tâm)
         $fromDate = $request->get('from_date');
         $toDate = $request->get('to_date');
+        $sortBy = $request->get('sort_by');
+        $order = strtolower($request->get('order', 'asc')) === 'desc' ? 'desc' : 'asc';
 
         $query = Invoice::with(['company', 'partner', 'debt', 'attachments'])
             ->withCount('attachments')
@@ -94,7 +100,17 @@ class InvoiceController extends Controller
             });
         }
 
-        $invoices = $query->orderBy('issue_date', 'desc')->paginate(20)->withQueryString();
+        if ($sortBy === 'number') {
+            if (config('database.default') === 'pgsql') {
+                $query->orderByRaw("CASE WHEN invoice_number ~ '^[0-9]+$' THEN invoice_number::bigint ELSE NULL END {$order} NULLS LAST, invoice_number {$order}");
+            } else {
+                $query->orderBy('invoice_number', $order);
+            }
+        } else {
+            $query->orderBy('issue_date', 'desc')->orderBy('id', 'desc');
+        }
+
+        $invoices = $query->paginate(20)->withQueryString();
 
         // Thống kê riêng cho luồng này theo bộ lọc
         $statsQuery = Invoice::where('type', $flow);
@@ -138,6 +154,8 @@ class InvoiceController extends Controller
             'search',
             'fromDate',
             'toDate',
+            'sortBy',
+            'order',
             'totalAmount',
             'totalPaid',
             'totalUnpaid',
@@ -150,6 +168,9 @@ class InvoiceController extends Controller
     {
         if ($request->has('subtotal')) {
             $request->merge(['subtotal' => str_replace(',', '', (string)$request->subtotal)]);
+        }
+        if ($request->has('tax_amount')) {
+            $request->merge(['tax_amount' => str_replace(',', '', (string)$request->tax_amount)]);
         }
         if ($request->has('paid_amount')) {
             $request->merge(['paid_amount' => str_replace(',', '', (string)$request->paid_amount)]);
@@ -165,7 +186,9 @@ class InvoiceController extends Controller
             'title' => 'required|string|max:255',
             'subtotal' => 'required|numeric|min:0',
             'tax_rate' => 'required|numeric|min:0|max:100',
+            'tax_amount' => 'nullable|numeric|min:0',
             'paid_amount' => 'nullable|numeric|min:0',
+            'paid_date' => 'nullable|date',
             'issue_date' => 'required|date',
             'due_date' => 'nullable|date',
             'status' => 'nullable|in:unpaid,partial,paid,cancelled',
@@ -226,7 +249,9 @@ class InvoiceController extends Controller
 
         $subtotal = (float)$validated['subtotal'];
         $taxRate = (float)$validated['tax_rate'];
-        $taxAmount = round($subtotal * ($taxRate / 100), 2);
+        $taxAmount = isset($validated['tax_amount']) && $validated['tax_amount'] !== '' 
+            ? (float)$validated['tax_amount'] 
+            : round($subtotal * ($taxRate / 100), 2);
         $totalAmount = $subtotal + $taxAmount;
 
         $paidAmount = (float)($validated['paid_amount'] ?? 0);
@@ -298,6 +323,7 @@ class InvoiceController extends Controller
                 'tax_amount' => $taxAmount,
                 'total_amount' => $totalAmount,
                 'paid_amount' => $paidAmount,
+                'paid_date' => $paidAmount > 0 ? ($validated['paid_date'] ?? date('Y-m-d')) : null,
                 'issue_date' => $validated['issue_date'],
                 'due_date' => $validated['due_date'],
                 'status' => $status,
@@ -316,6 +342,9 @@ class InvoiceController extends Controller
         if ($request->has('subtotal')) {
             $request->merge(['subtotal' => str_replace(',', '', (string)$request->subtotal)]);
         }
+        if ($request->has('tax_amount')) {
+            $request->merge(['tax_amount' => str_replace(',', '', (string)$request->tax_amount)]);
+        }
         if ($request->has('paid_amount')) {
             $request->merge(['paid_amount' => str_replace(',', '', (string)$request->paid_amount)]);
         }
@@ -329,7 +358,9 @@ class InvoiceController extends Controller
             'title' => 'required|string|max:255',
             'subtotal' => 'required|numeric|min:0',
             'tax_rate' => 'required|numeric|min:0|max:100',
+            'tax_amount' => 'nullable|numeric|min:0',
             'paid_amount' => 'nullable|numeric|min:0',
+            'paid_date' => 'nullable|date',
             'issue_date' => 'required|date',
             'due_date' => 'nullable|date',
             'status' => 'nullable|in:unpaid,partial,paid,cancelled',
@@ -354,14 +385,22 @@ class InvoiceController extends Controller
 
         $subtotal = (float)$validated['subtotal'];
         $taxRate = (float)$validated['tax_rate'];
-        $taxAmount = round($subtotal * ($taxRate / 100), 2);
+        $taxAmount = isset($validated['tax_amount']) && $validated['tax_amount'] !== '' 
+            ? (float)$validated['tax_amount'] 
+            : round($subtotal * ($taxRate / 100), 2);
         $totalAmount = $subtotal + $taxAmount;
 
         $paidAmount = isset($validated['paid_amount']) ? (float)$validated['paid_amount'] : (float)$invoice->paid_amount;
         $reqStatus = $validated['status'] ?? $invoice->status;
+        $paidDate = $request->input('paid_date');
 
         if ($reqStatus === 'cancelled') {
             $status = 'cancelled';
+        } elseif ($reqStatus === 'paid') {
+            $status = 'paid';
+            if ($paidAmount <= 0) {
+                $paidAmount = $totalAmount;
+            }
         } elseif ($paidAmount >= $totalAmount && $totalAmount > 0) {
             $status = 'paid';
             $paidAmount = $totalAmount;
@@ -370,6 +409,20 @@ class InvoiceController extends Controller
         } else {
             $status = 'unpaid';
             $paidAmount = 0;
+        }
+
+        // Xử lý Ngày thanh toán
+        if (!empty($paidDate)) {
+            // Người dùng có nhập ngày thanh toán
+            if ($status === 'unpaid' && $paidAmount <= 0) {
+                $status = 'paid';
+                $paidAmount = $totalAmount;
+            }
+        } elseif ($paidAmount > 0) {
+            // Có thanh toán nhưng để trống ngày -> giữ ngày cũ hoặc hôm nay
+            $paidDate = $invoice->paid_date ?? date('Y-m-d');
+        } else {
+            $paidDate = null;
         }
 
         $invoice->update([
@@ -384,6 +437,7 @@ class InvoiceController extends Controller
             'tax_amount' => $taxAmount,
             'total_amount' => $totalAmount,
             'paid_amount' => $paidAmount,
+            'paid_date' => $paidDate,
             'issue_date' => $validated['issue_date'],
             'due_date' => $validated['due_date'],
             'status' => $status,
@@ -422,6 +476,7 @@ class InvoiceController extends Controller
 
         $validated = $request->validate([
             'amount' => 'required|numeric|min:1',
+            'payment_date' => 'nullable|date',
             'notes' => 'nullable|string',
         ]);
 
@@ -432,12 +487,15 @@ class InvoiceController extends Controller
         if ($newPaidAmount >= $totalAmount) {
             $invoice->paid_amount = $totalAmount;
             $invoice->status = 'paid';
+            $invoice->paid_date = $validated['payment_date'] ?? date('Y-m-d');
         } elseif ($newPaidAmount > 0) {
             $invoice->paid_amount = $newPaidAmount;
             $invoice->status = 'partial';
+            $invoice->paid_date = $validated['payment_date'] ?? date('Y-m-d');
         } else {
             $invoice->paid_amount = 0;
             $invoice->status = 'unpaid';
+            $invoice->paid_date = null;
         }
         $invoice->save();
 
@@ -458,9 +516,11 @@ class InvoiceController extends Controller
         if ($invoice->status === 'paid') {
             $invoice->status = 'unpaid';
             $invoice->paid_amount = 0;
+            $invoice->paid_date = null;
         } else {
             $invoice->status = 'paid';
             $invoice->paid_amount = $invoice->total_amount;
+            $invoice->paid_date = date('Y-m-d');
         }
         $invoice->save();
 

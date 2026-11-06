@@ -884,8 +884,16 @@
 <script>
     function formatNumberWithCommas(value) {
         if (value === null || value === undefined || value === '') return '';
-        let clean = value.toString().replace(/[^0-9]/g, '');
+        let str = value.toString().trim();
+        if (/^\d+\.\d+$/.test(str)) {
+            let num = Math.round(parseFloat(str));
+            if (!isNaN(num)) {
+                str = num.toString();
+            }
+        }
+        let clean = str.replace(/[^0-9]/g, '');
         if (!clean) return '';
+        clean = clean.replace(/^0+(?=\d)/, '');
         return clean.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     }
 
