@@ -59,8 +59,49 @@ class Invoice extends Model
         return $this->hasMany(InvoiceAttachment::class)->orderBy('id', 'desc');
     }
 
+    public function payments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(InvoicePayment::class)->orderBy('payment_date', 'asc')->orderBy('id', 'asc');
+    }
+
     public function getRemainingAmountAttribute(): float
     {
         return max(0, (float)$this->total_amount - (float)$this->paid_amount);
+    }
+
+    public function getSurplusAmountAttribute(): float
+    {
+        return max(0, (float)$this->paid_amount - (float)$this->total_amount);
+    }
+
+    /**
+     * Tự động đồng bộ số tiền đã thanh toán và trạng thái hóa đơn dựa trên lịch sử các đợt thanh toán
+     */
+    public function syncPaymentsStatus(): void
+    {
+        $sumPaid = (float)$this->payments()->sum('amount');
+        $this->paid_amount = $sumPaid;
+
+        $lastPayment = $this->payments()->orderBy('payment_date', 'desc')->orderBy('id', 'desc')->first();
+        if ($lastPayment) {
+            $this->paid_date = $lastPayment->payment_date;
+        }
+
+        $total = (float)$this->total_amount;
+        if ($sumPaid >= $total && $total > 0) {
+            $this->status = 'paid';
+        } elseif ($sumPaid > 0) {
+            $this->status = 'partial';
+        } else {
+            $this->status = 'unpaid';
+            $this->paid_date = null;
+        }
+
+        $this->save();
+
+        if ($this->debt) {
+            $this->debt->paid_amount = $this->paid_amount;
+            $this->debt->updateStatusAutomatically();
+        }
     }
 }

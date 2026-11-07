@@ -6,6 +6,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DebtController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\DashboardController;
 
 // Auth Routes (Dành cho khách chưa đăng nhập)
 Route::middleware('guest')->group(function () {
@@ -35,6 +36,9 @@ Route::middleware('auth')->group(function () {
     Route::put('/companies/{id}', [CompanyController::class, 'update'])->name('company.update');
     Route::delete('/companies/{id}', [CompanyController::class, 'destroy'])->name('company.destroy');
 
+    // 4. Sơ Đồ Phân Tích & Dashboard So Sánh Đầu Vào - Đầu Ra (Tất Cả Doanh Nghiệp)
+    Route::get('/so-do-phan-tich', [DashboardController::class, 'index'])->name('dashboard.index');
+
     // Đính kèm file Doanh nghiệp (Hồ sơ, ĐKKD, HĐ Nguyên Tắc, Catalogue, Báo giá...)
     Route::get('/partners/{id}/attachments', [CompanyController::class, 'getAttachments'])->name('partner.attachments.index');
     Route::post('/partners/{id}/attachments', [CompanyController::class, 'uploadAttachments'])->name('partner.attachments.store');
@@ -57,6 +61,8 @@ Route::middleware('auth')->group(function () {
     Route::put('/invoices/{id}', [InvoiceController::class, 'update'])->name('invoice.update');
     Route::delete('/invoices/{id}', [InvoiceController::class, 'destroy'])->name('invoice.destroy');
     Route::post('/invoices/{id}/pay', [InvoiceController::class, 'pay'])->name('invoice.pay');
+    Route::get('/invoices/{id}/payments', [InvoiceController::class, 'getPayments'])->name('invoice.payments.list');
+    Route::delete('/invoice-payments/{id}', [InvoiceController::class, 'deletePayment'])->name('invoice.payment.destroy');
     Route::post('/invoices/{id}/toggle-status', [InvoiceController::class, 'toggleStatus'])->name('invoice.toggle-status');
     Route::post('/invoices/{id}/toggle-concern', [InvoiceController::class, 'toggleConcern'])->name('invoice.toggle-concern');
     Route::get('/hoa-don/{id}/in', [InvoiceController::class, 'print'])->name('invoice.print');

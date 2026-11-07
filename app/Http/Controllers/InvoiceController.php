@@ -8,6 +8,7 @@ use App\Models\Partner;
 use App\Models\Invoice;
 use App\Models\InvoiceAttachment;
 use App\Models\Debt;
+use App\Models\InvoicePayment;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -61,7 +62,7 @@ class InvoiceController extends Controller
         $sortBy = $request->get('sort_by');
         $order = strtolower($request->get('order', 'asc')) === 'desc' ? 'desc' : 'asc';
 
-        $query = Invoice::with(['company', 'partner', 'debt', 'attachments'])
+        $query = Invoice::with(['company', 'partner', 'debt', 'attachments', 'payments'])
             ->withCount('attachments')
             ->where('type', $flow);
 
@@ -478,51 +479,101 @@ class InvoiceController extends Controller
             'amount' => 'required|numeric|min:1',
             'payment_date' => 'nullable|date',
             'notes' => 'nullable|string',
+            'payment_method' => 'nullable|string',
+            'reference_code' => 'nullable|string',
         ]);
 
         $paymentAmount = (float)$validated['amount'];
-        $newPaidAmount = (float)$invoice->paid_amount + $paymentAmount;
+
+        // Tạo bản ghi đợt thanh toán vào lịch sử thanh toán
+        InvoicePayment::create([
+            'invoice_id' => $invoice->id,
+            'amount' => $paymentAmount,
+            'payment_date' => $validated['payment_date'] ?? date('Y-m-d'),
+            'note' => $validated['notes'] ?? null,
+            'payment_method' => $request->get('payment_method', 'transfer'),
+            'reference_code' => $request->get('reference_code'),
+        ]);
+
+        // Tự động đồng bộ lại paid_amount, paid_date và status của hóa đơn
+        $invoice->syncPaymentsStatus();
+
         $totalAmount = (float)$invoice->total_amount;
-
-        if ($newPaidAmount >= $totalAmount) {
-            $invoice->paid_amount = $totalAmount;
-            $invoice->status = 'paid';
-            $invoice->paid_date = $validated['payment_date'] ?? date('Y-m-d');
-        } elseif ($newPaidAmount > 0) {
-            $invoice->paid_amount = $newPaidAmount;
-            $invoice->status = 'partial';
-            $invoice->paid_date = $validated['payment_date'] ?? date('Y-m-d');
-        } else {
-            $invoice->paid_amount = 0;
-            $invoice->status = 'unpaid';
-            $invoice->paid_date = null;
-        }
-        $invoice->save();
-
-        if ($invoice->debt) {
-            $invoice->debt->paid_amount = $invoice->paid_amount;
-            $invoice->debt->updateStatusAutomatically();
-        }
-
         $remaining = max(0, $totalAmount - $invoice->paid_amount);
-        $statusText = $invoice->status === 'paid' ? 'Đã thanh toán đủ' : 'Thanh toán 1 phần (Còn thiếu ' . number_format($remaining, 0, ',', '.') . ' đ)';
+        $surplus = max(0, $invoice->paid_amount - $totalAmount);
 
-        return redirect()->back()->with('success', "Đã ghi nhận thanh toán " . number_format($paymentAmount, 0, ',', '.') . " đ cho hóa đơn {$invoice->invoice_number}! Trạng thái: {$statusText}.");
+        if ($surplus > 0) {
+            $statusText = 'Đã thanh toán đủ (Thanh toán thừa +' . number_format($surplus, 0, ',', '.') . ' đ bù HĐ khác)';
+        } elseif ($invoice->status === 'paid') {
+            $statusText = 'Đã thanh toán đủ';
+        } else {
+            $statusText = 'Thanh toán 1 phần (Còn thiếu ' . number_format($remaining, 0, ',', '.') . ' đ)';
+        }
+
+        return redirect()->back()->with('success', "Đã ghi nhận đợt thanh toán " . number_format($paymentAmount, 0, ',', '.') . " đ cho hóa đơn {$invoice->invoice_number}! Trạng thái: {$statusText}.");
+    }
+
+    /**
+     * Lấy danh sách lịch sử thanh toán của hóa đơn (AJAX/JSON)
+     */
+    public function getPayments($id)
+    {
+        $invoice = Invoice::with(['payments' => function($q) {
+            $q->orderBy('payment_date', 'asc')->orderBy('id', 'asc');
+        }, 'partner'])->findOrFail($id);
+
+        return response()->json([
+            'invoice_id' => $invoice->id,
+            'invoice_number' => $invoice->invoice_number,
+            'partner_name' => $invoice->partner ? $invoice->partner->name : '',
+            'total_amount' => (float)$invoice->total_amount,
+            'paid_amount' => (float)$invoice->paid_amount,
+            'remaining_amount' => (float)$invoice->remaining_amount,
+            'surplus_amount' => (float)$invoice->surplus_amount,
+            'status' => $invoice->status,
+            'payments' => $invoice->payments,
+        ]);
+    }
+
+    /**
+     * Xóa 1 đợt thanh toán khỏi lịch sử
+     */
+    public function deletePayment($id)
+    {
+        $payment = InvoicePayment::findOrFail($id);
+        $invoice = $payment->invoice;
+        $amount = $payment->amount;
+        $payment->delete();
+
+        // Đồng bộ lại hóa đơn
+        $invoice->syncPaymentsStatus();
+
+        return redirect()->back()->with('success', "Đã xóa đợt thanh toán " . number_format($amount, 0, ',', '.') . " đ của hóa đơn {$invoice->invoice_number}.");
     }
 
     public function toggleStatus($id)
     {
         $invoice = Invoice::findOrFail($id);
         if ($invoice->status === 'paid') {
+            // Chuyển về Chưa thanh toán: Xóa các đợt thanh toán
+            $invoice->payments()->delete();
             $invoice->status = 'unpaid';
             $invoice->paid_amount = 0;
             $invoice->paid_date = null;
+            $invoice->save();
         } else {
-            $invoice->status = 'paid';
-            $invoice->paid_amount = $invoice->total_amount;
-            $invoice->paid_date = date('Y-m-d');
+            // Chuyển sang Đã thanh toán: Nếu chưa có đợt thanh toán nào thì tạo 1 đợt thanh toán đủ
+            if ($invoice->payments()->count() === 0) {
+                InvoicePayment::create([
+                    'invoice_id' => $invoice->id,
+                    'amount' => $invoice->total_amount,
+                    'payment_date' => date('Y-m-d'),
+                    'note' => 'Thanh toán đủ',
+                    'payment_method' => 'transfer',
+                ]);
+            }
+            $invoice->syncPaymentsStatus();
         }
-        $invoice->save();
 
         if ($invoice->debt) {
             $invoice->debt->paid_amount = $invoice->paid_amount;

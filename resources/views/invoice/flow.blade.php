@@ -304,7 +304,7 @@
             <table class="table table-custom align-middle">
                 <thead>
                     <tr>
-                        <th style="width: 8.5rem;">
+                        <th class="text-nowrap" style="width: 7.5rem;">
                             @php
                                 $isSortedByNumber = ($sortBy === 'number');
                                 $nextOrder = ($isSortedByNumber && $order === 'asc') ? 'desc' : 'asc';
@@ -321,18 +321,19 @@
                             </a>
                         </th>
                         @if(Auth::check() && Auth::user()->isAdmin())
-                            <th style="width: 11.5rem;">CTY</th>
+                            <th class="text-nowrap" style="width: 10rem;">CTY</th>
                         @endif
-                        <th style="width: 14rem;">Doanh Nghiệp</th>
-                        <th class="text-center" style="width: 8.5rem;">Phân Loại</th>
-                        <th class="text-end" style="width: 8.5rem;">Tiền Trước Thuế</th>
-                        <th class="text-center" style="width: 6.5rem;">VAT (%)</th>
-                        <th class="text-end" style="width: 9rem;">Tổng Thanh Toán</th>
-                        <th class="text-end" style="width: 8.5rem;">Đã Thanh Toán</th>
-                        <th class="text-end" style="width: 8.5rem;">Còn Lại</th>
-                        <th style="width: 7.5rem;">Ngày Lập</th>
-                        <th class="text-center" style="width: 8rem;">Trạng Thái</th>
-                        <th class="text-end" style="width: 11.5rem;">Thao Tác</th>
+                        <th class="text-nowrap" style="width: 13.5rem;">Doanh Nghiệp</th>
+                        <th class="text-center text-nowrap" style="width: 7.5rem;">Phân Loại</th>
+                        <th class="text-end text-nowrap" style="width: 9rem;">Tiền Trước Thuế</th>
+                        <th class="text-center text-nowrap" style="width: 6.5rem;">VAT (%)</th>
+                        <th class="text-end text-nowrap" style="width: 9.5rem;">Tổng Thanh Toán</th>
+                        <th class="text-end text-nowrap" style="width: 9rem;">Đã Thanh Toán</th>
+                        <th class="text-nowrap" style="width: 11.5rem;">Lịch Sử Thanh Toán</th>
+                        <th class="text-end text-nowrap" style="width: 9rem;">Còn Lại</th>
+                        <th class="text-nowrap" style="width: 7.5rem;">Ngày Lập</th>
+                        <th class="text-center text-nowrap" style="width: 8.5rem;">Trạng Thái</th>
+                        <th class="text-end text-nowrap" style="width: 10.5rem;">Thao Tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -403,19 +404,19 @@
                             </td>
 
                             <!-- Phân loại (Quan tâm / Không quan tâm) -->
-                            <td class="text-center">
+                            <td class="text-center text-nowrap">
                                 <button type="button" 
                                         class="btn btn-sm p-0 border-0 bg-transparent shadow-none"
                                         id="btn-concern-{{ $inv->id }}"
                                         onclick="toggleInvoiceConcern({{ $inv->id }})"
                                         title="Nhấn để đổi sang {{ $inv->is_concerned ? 'Không quan tâm' : 'Quan tâm' }}">
                                     @if($inv->is_concerned)
-                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem; cursor: pointer;">
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1 text-nowrap" style="font-size: 0.72rem; cursor: pointer;">
                                             <i class="bi bi-star-fill text-warning"></i>
                                             <span>Quan tâm</span>
                                         </span>
                                     @else
-                                        <span class="badge bg-light text-secondary border rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem; cursor: pointer;">
+                                        <span class="badge bg-light text-secondary border rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1 text-nowrap" style="font-size: 0.72rem; cursor: pointer;">
                                             <i class="bi bi-dash-circle text-muted"></i>
                                             <span>Không quan tâm</span>
                                         </span>
@@ -424,57 +425,106 @@
                             </td>
 
                             <!-- Tiền trước thuế -->
-                            <td class="text-end fw-medium text-secondary">
+                            <td class="text-end fw-medium text-secondary text-nowrap">
                                 {{ number_format($inv->subtotal, 0, ',', '.') }} đ
                             </td>
 
                             <!-- Thuế suất VAT -->
-                            <td class="text-center">
+                            <td class="text-center text-nowrap">
                                 <span class="badge bg-light text-dark border rounded-pill" style="font-size: 0.72rem;">
                                     {{ (float)$inv->tax_rate }}%
                                 </span>
-                                <div class="text-muted" style="font-size: 0.7rem;">
+                                <div class="text-muted text-nowrap" style="font-size: 0.7rem;">
                                     +{{ number_format($inv->tax_amount, 0, ',', '.') }} đ
                                 </div>
                             </td>
 
                             <!-- Tổng thanh toán -->
-                            <td class="text-end fw-bold text-dark">
+                            <td class="text-end fw-bold text-dark text-nowrap">
                                 {{ number_format($inv->total_amount, 0, ',', '.') }} đ
                             </td>
 
                             <!-- Đã thanh toán -->
-                            <td class="text-end">
-                                <div class="text-success fw-medium font-monospace">
-                                    {{ number_format($inv->paid_amount, 0, ',', '.') }} đ
-                                </div>
-                                @if($inv->paid_date)
-                                    <div class="text-muted small" style="font-size: 0.73rem;">
-                                        <i class="bi bi-calendar2-check text-success me-1"></i>{{ \Carbon\Carbon::parse($inv->paid_date)->format('d/m/Y') }}
+                            <td class="text-end text-nowrap">
+                                @if($inv->paid_amount > 0)
+                                    <div class="text-success fw-bold font-monospace text-nowrap">
+                                        {{ number_format($inv->paid_amount, 0, ',', '.') }} đ
                                     </div>
+                                    @if($inv->paid_amount > $inv->total_amount)
+                                        <span class="badge bg-info-subtle text-info border text-nowrap mt-1" style="font-size: 0.65rem;" title="Thanh toán thừa bù cho hóa đơn khác">
+                                            Dư +{{ number_format($inv->paid_amount - $inv->total_amount, 0, ',', '.') }} đ
+                                        </span>
+                                    @endif
+                                @else
+                                    <span class="text-muted small">-</span>
+                                @endif
+                            </td>
+
+                            <!-- Lịch sử thanh toán -->
+                            <td class="text-nowrap">
+                                @if($inv->payments && $inv->payments->count() >= 2)
+                                    <!-- Nếu thanh toán từ 2 lần trở lên: Hiển thị rõ từng ngày và số tiền gom gọn gàng cạnh nhau -->
+                                    <div class="d-flex flex-column gap-1">
+                                        @foreach($inv->payments as $p)
+                                            <div class="d-inline-flex align-items-center gap-1 text-nowrap" style="font-size: 0.78rem;">
+                                                <span class="text-muted">
+                                                    ngày {{ \Carbon\Carbon::parse($p->payment_date)->format('d/m') }}:
+                                                </span>
+                                                <span class="fw-bold font-monospace text-dark">
+                                                    {{ number_format($p->amount, 0, ',', '.') }} đ
+                                                </span>
+                                                @if($p->note)
+                                                    <span class="badge bg-light text-secondary border text-truncate ms-1" style="max-width: 4.5rem; font-size: 0.65rem;" title="{{ $p->note }}">
+                                                        {{ $p->note }}
+                                                    </span>
+                                                @endif
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @elseif($inv->paid_amount > 0)
+                                    <!-- Nếu chỉ thanh toán 1 lần: Ẩn cột tiền (tiền đã có ở cột Đã thanh toán bên cạnh), chỉ hiển thị ngày thanh toán -->
+                                    @php
+                                        $singleDate = ($inv->payments && $inv->payments->count() === 1) 
+                                            ? $inv->payments->first()->payment_date 
+                                            : ($inv->paid_date ?? $inv->issue_date);
+                                    @endphp
+                                    <div class="small text-muted text-nowrap d-inline-flex align-items-center gap-1">
+                                        <i class="bi bi-calendar2-check text-success"></i>
+                                        <span>{{ \Carbon\Carbon::parse($singleDate)->format('d/m/Y') }}</span>
+                                    </div>
+                                @else
+                                    <span class="text-muted small">-</span>
                                 @endif
                             </td>
 
                             <!-- Còn lại -->
-                            <td class="text-end fw-bold {{ $remaining > 0 ? ($isOut ? 'text-primary' : 'text-danger') : 'text-muted' }}">
-                                {{ number_format($remaining, 0, ',', '.') }} đ
+                            <td class="text-end fw-bold text-nowrap {{ $remaining > 0 ? ($isOut ? 'text-primary' : 'text-danger') : ($inv->paid_amount > $inv->total_amount ? 'text-info' : 'text-muted') }}">
+                                @if($inv->paid_amount > $inv->total_amount)
+                                    <span class="text-info font-monospace text-nowrap" title="Đã thanh toán thừa bù cho HĐ cũ">+{{ number_format($inv->paid_amount - $inv->total_amount, 0, ',', '.') }} đ</span>
+                                @else
+                                    <span class="text-nowrap">{{ number_format($remaining, 0, ',', '.') }} đ</span>
+                                @endif
                             </td>
 
                             <!-- Ngày lập -->
-                            <td>
-                                <div class="text-dark small">
+                            <td class="text-nowrap">
+                                <div class="text-dark small text-nowrap">
                                     {{ \Carbon\Carbon::parse($inv->issue_date)->format('d/m/Y') }}
                                 </div>
                                 @if($inv->due_date)
-                                    <div class="text-muted" style="font-size: 0.7rem;">
+                                    <div class="text-muted text-nowrap" style="font-size: 0.7rem;">
                                         Hạn: {{ \Carbon\Carbon::parse($inv->due_date)->format('d/m/Y') }}
                                     </div>
                                 @endif
                             </td>
 
                             <!-- Trạng thái -->
-                            <td class="text-center">
-                                @if($inv->status === 'paid' || $remaining <= 0)
+                            <td class="text-center text-nowrap">
+                                @if($inv->paid_amount > $inv->total_amount)
+                                    <span class="badge badge-soft-success py-1 px-2 rounded-pill text-nowrap" title="Đã thanh toán đủ và có tiền thừa bù HĐ khác">
+                                        <i class="bi bi-check2-all"></i> Đã TT đủ (Dư bù)
+                                    </span>
+                                @elseif($inv->status === 'paid' || $remaining <= 0)
                                     <form action="{{ route('invoice.toggle-status', $inv->id) }}" method="POST" class="d-inline">
                                         @csrf
                                         <button type="submit" class="badge badge-soft-success py-1 px-2 rounded-pill border-0 shadow-none text-nowrap" title="Bấm để chuyển về Chưa thanh toán">
@@ -486,7 +536,7 @@
                                         <button type="button" class="badge py-1 px-2 rounded-pill border-0 shadow-none mb-1 text-nowrap" style="background-color: #fef3c7; color: #d97706; border: 0.0625rem solid #fde68a !important;" onclick='openInvoicePaymentModal(@json($inv))' title="Nhấn để tiếp tục thanh toán">
                                             <i class="bi bi-pie-chart-fill"></i> Thanh toán 1 phần
                                         </button>
-                                        <span class="fw-bold font-monospace text-danger" style="font-size: 0.73rem;">
+                                        <span class="fw-bold font-monospace text-danger text-nowrap" style="font-size: 0.73rem;">
                                             Thiếu: {{ number_format($remaining, 0, ',', '.') }} đ
                                         </span>
                                     </div>
@@ -502,7 +552,7 @@
                                                 <i class="bi bi-hourglass-split"></i> Chưa thanh toán
                                             </button>
                                         </form>
-                                        <span class="fw-bold font-monospace text-danger" style="font-size: 0.73rem;">
+                                        <span class="fw-bold font-monospace text-danger text-nowrap" style="font-size: 0.73rem;">
                                             Thiếu: {{ number_format($remaining, 0, ',', '.') }} đ
                                         </span>
                                     </div>
@@ -512,12 +562,10 @@
                             <!-- Thao tác: Nút Thanh toán dài ra trên 1 dòng -->
                             <td class="text-end">
                                 <div class="d-inline-flex gap-1 align-items-center justify-content-end">
-                                    @if($remaining > 0)
-                                        <button type="button" class="btn btn-sm btn-theme-primary px-3 py-1 rounded-pill d-inline-flex align-items-center gap-1 text-nowrap shadow-sm" title="Ghi nhận thanh toán" onclick="openInvoicePaymentModal({{ json_encode($inv) }})">
-                                            <i class="bi bi-credit-card-2-front"></i>
-                                            <span>Thanh toán</span>
-                                        </button>
-                                    @endif
+                                    <button type="button" class="btn btn-sm {{ $remaining > 0 ? 'btn-theme-primary' : 'btn-outline-success' }} px-3 py-1 rounded-pill d-inline-flex align-items-center gap-1 text-nowrap shadow-sm" title="Ghi nhận / Quản lý thanh toán" onclick='openInvoicePaymentModal(@json($inv))'>
+                                        <i class="bi bi-credit-card-2-front"></i>
+                                        <span>Thanh toán</span>
+                                    </button>
 
                                     <!-- Nút In hóa đơn -->
                                     <a href="{{ route('invoice.print', $inv->id) }}" target="_blank" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1" title="In / Xem chi tiết hóa đơn">
@@ -530,6 +578,11 @@
                                             <i class="bi bi-three-dots-vertical"></i>
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-4 p-2">
+                                            <li>
+                                                <button class="dropdown-item small py-2 rounded-3" type="button" onclick='openInvoicePaymentModal(@json($inv))'>
+                                                    <i class="bi bi-clock-history me-2 text-success"></i> Lịch sử thanh toán ({{ $inv->payments ? $inv->payments->count() : 0 }})
+                                                </button>
+                                            </li>
                                             <li>
                                                 <button class="dropdown-item small py-2 rounded-3" type="button" onclick="openInvoiceAttachmentsModal({{ $inv->id }}, '{{ $inv->invoice_number }}')">
                                                     <i class="bi bi-paperclip me-2 text-primary"></i> Đính kèm file ({{ $inv->attachments_count }})
@@ -562,7 +615,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ (Auth::check() && Auth::user()->isAdmin()) ? 12 : 11 }}" class="text-center py-5 text-muted">
+                            <td colspan="{{ (Auth::check() && Auth::user()->isAdmin()) ? 13 : 12 }}" class="text-center py-5 text-muted">
                                 <div class="mb-2">
                                     <i class="bi bi-receipt fs-1 text-secondary opacity-50"></i>
                                 </div>
@@ -781,81 +834,160 @@
 </div>
 
 <!-- ========================================================================= -->
-<!-- MODAL GHI NHẬN THANH TOÁN CHO HÓA ĐƠN -->
+<!-- MODAL GHI NHẬN & QUẢN LÝ LỊCH SỬ THANH TOÁN -->
 <!-- ========================================================================= -->
 <div class="modal fade" id="modalInvoicePayment" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 rounded-4 shadow">
             <div class="modal-header bg-white border-bottom py-3 px-4">
                 <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
                     <span class="navbar-brand-badge" style="width: 2rem; height: 2rem; font-size: 1rem; background-color: #ecfdf5; color: #047857;">
                         <i class="bi bi-credit-card-2-front"></i>
                     </span>
-                    <span>Thanh Toán Hóa Đơn</span>
+                    <span>Quản Lý &amp; Ghi Nhận Thanh Toán Hóa Đơn</span>
                 </h5>
                 <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="invoicePaymentForm" method="POST">
-                @csrf
-                <div class="modal-body p-4">
-                    <div class="p-3 mb-3 rounded-3" style="background-color: var(--blue-soft-50); border: 0.0625rem solid var(--blue-soft-200);">
-                        <div class="d-flex justify-content-between text-muted small mb-2">
-                            <span id="invPayNumber" class="fw-bold font-monospace text-dark"></span>
-                            <span id="invPayPartner" class="fw-semibold text-primary"></span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-baseline mb-1">
-                            <span class="text-muted small">Tổng tiền hóa đơn:</span>
-                            <span id="invPayTotal" class="fw-bold text-dark fs-6">0 đ</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-baseline mb-1">
-                            <span class="text-muted small">Đã thanh toán trước đó:</span>
-                            <span id="invPayCurrentPaid" class="fw-medium text-success">0 đ</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-baseline border-top pt-2 mt-2">
-                            <span class="text-muted small fw-bold">Hiện còn thiếu:</span>
-                            <span id="invPayRemaining" class="fs-5 fw-bold text-danger font-monospace">0 đ</span>
-                        </div>
+            
+            <div class="modal-body p-4">
+                <!-- Thông tin tóm tắt hóa đơn -->
+                <div class="p-3 mb-4 rounded-3" style="background-color: var(--blue-soft-50); border: 0.0625rem solid var(--blue-soft-200);">
+                    <div class="d-flex justify-content-between text-muted small mb-2">
+                        <span>Hóa đơn: <strong id="invPayNumber" class="font-monospace text-dark fs-6"></strong></span>
+                        <span id="invPayPartner" class="fw-bold text-primary"></span>
                     </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold text-dark small mb-1">
-                            Số tiền thanh toán đợt này (VNĐ) <span class="text-danger">*</span>
-                        </label>
-                        <div class="input-group">
-                            <input type="text" inputmode="numeric" name="amount" id="invPayInputAmount" class="form-control fs-5 fw-bold text-success rounded-start-3 shadow-none currency-input" required>
-                            <span class="input-group-text bg-light text-muted rounded-end-3">đ</span>
-                        </div>
-                        <div id="invPayPreviewResult" class="mt-2 p-2 rounded-3 small bg-light border">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="text-muted">Còn thiếu sau lần trả này:</span>
-                                <span id="invPayPreviewRemaining" class="fw-bold text-danger font-monospace">0 đ</span>
+                    <div class="row g-2 text-center mt-1">
+                        <div class="col-4">
+                            <div class="p-2 bg-white rounded-3 border">
+                                <span class="text-muted d-block small" style="font-size: 0.75rem;">Tiền hóa đơn</span>
+                                <strong id="invPayTotal" class="text-dark">0 đ</strong>
                             </div>
-                            <div class="d-flex justify-content-between align-items-center mt-1">
-                                <span class="text-muted">Trạng thái mới:</span>
-                                <span id="invPayPreviewStatus" class="badge badge-soft-success py-1 px-2 rounded-pill">Đã thanh toán đủ</span>
+                        </div>
+                        <div class="col-4">
+                            <div class="p-2 bg-white rounded-3 border">
+                                <span class="text-muted d-block small" style="font-size: 0.75rem;">Đã thanh toán</span>
+                                <strong id="invPayCurrentPaid" class="text-success">0 đ</strong>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="p-2 bg-white rounded-3 border">
+                                <span class="text-muted d-block small" style="font-size: 0.75rem;" id="invPayRemainingLabel">Hiện còn thiếu</span>
+                                <strong id="invPayRemaining" class="text-danger font-monospace">0 đ</strong>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold text-dark small mb-1">
-                            Ngày thanh toán <span class="text-danger">*</span>
-                        </label>
-                        <input type="date" name="payment_date" id="invPayDate" class="form-control rounded-3 shadow-none" value="{{ date('Y-m-d') }}" required>
+                <!-- KHỐI 1: LỊCH SỬ CÁC ĐỢT THANH TOÁN (TABLE) -->
+                <div class="mb-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-1">
+                            <i class="bi bi-clock-history text-primary"></i> Lịch Sử Các Đợt Đã Chuyển Tiền
+                        </h6>
+                        <span id="invPaymentsCountBadge" class="badge bg-light text-secondary border">0 đợt</span>
                     </div>
 
-                    <div class="mb-0">
-                        <label class="form-label fw-semibold text-dark small mb-1">Ghi chú thanh toán</label>
-                        <textarea name="notes" class="form-control rounded-3 shadow-none" rows="2" placeholder="Ví dụ: Chuyển khoản đợt 1, tiền mặt..."></textarea>
+                    <div class="table-responsive border rounded-3 bg-white">
+                        <table class="table table-sm table-hover align-middle mb-0" id="invPaymentsTable">
+                            <thead class="table-light small text-muted">
+                                <tr>
+                                    <th class="ps-3 py-2" style="width: 4rem;">Đợt</th>
+                                    <th class="py-2" style="width: 7rem;">Ngày TT</th>
+                                    <th class="py-2 text-end" style="width: 9rem;">Số Tiền (VNĐ)</th>
+                                    <th class="py-2" style="width: 8rem;">Hình Thức</th>
+                                    <th class="py-2">Ghi Chú</th>
+                                    <th class="pe-3 py-2 text-end" style="width: 4rem;">Xóa</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invPaymentsTableBody">
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-3">
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                        <span class="ms-1 small">Đang tải lịch sử thanh toán...</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-top py-2 px-4 rounded-bottom-4">
-                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-theme-primary rounded-pill px-4">
-                        <i class="bi bi-check2-circle me-1"></i> Xác Nhận Thanh Toán
-                    </button>
+
+                <!-- KHỐI 2: FORM GHI NHẬN ĐỢT THANH TOÁN MỚI -->
+                <div class="card border rounded-4 shadow-none bg-light">
+                    <div class="card-body p-3">
+                        <h6 class="fw-bold text-dark mb-3 d-flex align-items-center gap-1">
+                            <i class="bi bi-plus-circle-fill text-success"></i> Ghi Nhận Thêm Đợt Thanh Toán Mới
+                        </h6>
+                        <form id="invoicePaymentForm" method="POST">
+                            @csrf
+                            <div class="row g-2 mb-3">
+                                <div class="col-12 col-md-7">
+                                    <label class="form-label fw-semibold text-dark small mb-1">
+                                        Số tiền thanh toán đợt này (VNĐ) <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="text" inputmode="numeric" name="amount" id="invPayInputAmount" class="form-control fs-5 fw-bold text-success rounded-start-3 shadow-none currency-input" required oninput="previewPaymentRemaining()">
+                                        <span class="input-group-text bg-white text-muted rounded-end-3">đ</span>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-1 mt-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill" style="font-size: 0.72rem;" onclick="fillRemainingAmount()">
+                                            Trả hết phần thiếu (<span id="btnFillRemainText">0 đ</span>)
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-5">
+                                    <label class="form-label fw-semibold text-dark small mb-1">
+                                        Ngày thanh toán <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="date" name="payment_date" id="invPayDate" class="form-control rounded-3 shadow-none" value="{{ date('Y-m-d') }}" required>
+                                </div>
+                            </div>
+
+                            <div class="row g-2 mb-3">
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label fw-semibold text-dark small mb-1">Hình thức</label>
+                                    <select name="payment_method" class="form-select form-select-sm rounded-3 shadow-none">
+                                        <option value="transfer">💳 Chuyển khoản ngân hàng</option>
+                                        <option value="cash">💵 Tiền mặt</option>
+                                        <option value="other">Khác</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-8">
+                                    <label class="form-label fw-semibold text-dark small mb-1">Ghi chú đợt thanh toán</label>
+                                    <input type="text" name="notes" id="invPayNoteInput" class="form-control form-control-sm rounded-3 shadow-none" placeholder="Ví dụ: Chuyển khoản đợt 1 / Chuyển bù 10.5tr cho HĐ cũ...">
+                                    <div class="d-flex flex-wrap gap-1 mt-1">
+                                        <button type="button" class="btn btn-outline-secondary py-0 px-2 rounded-pill" style="font-size: 0.68rem;" onclick="setPayNote('Chuyển khoản đợt 1')">Đợt 1</button>
+                                        <button type="button" class="btn btn-outline-secondary py-0 px-2 rounded-pill" style="font-size: 0.68rem;" onclick="setPayNote('Chuyển khoản đợt 2')">Đợt 2</button>
+                                        <button type="button" class="btn btn-outline-secondary py-0 px-2 rounded-pill" style="font-size: 0.68rem;" onclick="setPayNote('Chuyển bù cho HĐ cũ còn thiếu')">Bù HĐ cũ</button>
+                                        <button type="button" class="btn btn-outline-secondary py-0 px-2 rounded-pill" style="font-size: 0.68rem;" onclick="setPayNote('Tất toán đủ hợp đồng')">Tất toán đủ</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Xem trước kết quả -->
+                            <div id="invPayPreviewResult" class="p-2 rounded-3 small bg-white border mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted">Dự kiến sau lần trả này:</span>
+                                    <span id="invPayPreviewRemaining" class="fw-bold font-monospace">0 đ</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mt-1">
+                                    <span class="text-muted">Trạng thái mới:</span>
+                                    <span id="invPayPreviewStatus" class="badge badge-soft-success py-1 px-2 rounded-pill">Đã thanh toán đủ</span>
+                                </div>
+                            </div>
+
+                            <div class="text-end">
+                                <button type="submit" class="btn btn-theme-primary rounded-pill px-4 shadow-sm">
+                                    <i class="bi bi-check2-circle me-1"></i> Lưu Đợt Thanh Toán Này
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
-            </form>
+            </div>
+
+            <div class="modal-footer bg-white border-top py-2 px-4 rounded-bottom-4">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Đóng</button>
+            </div>
         </div>
     </div>
 </div>
@@ -1649,43 +1781,154 @@
         currentInvoiceTotal = parseFloat(inv.total_amount) || 0;
         currentInvoicePaid = parseFloat(inv.paid_amount) || 0;
         currentInvoiceRemaining = Math.max(0, currentInvoiceTotal - currentInvoicePaid);
+        const currentSurplus = Math.max(0, currentInvoicePaid - currentInvoiceTotal);
 
         document.getElementById('invPayNumber').textContent = inv.invoice_number;
         document.getElementById('invPayPartner').textContent = inv.partner ? inv.partner.name : '';
         document.getElementById('invPayTotal').textContent = new Intl.NumberFormat('vi-VN').format(currentInvoiceTotal) + ' đ';
         document.getElementById('invPayCurrentPaid').textContent = new Intl.NumberFormat('vi-VN').format(currentInvoicePaid) + ' đ';
-        document.getElementById('invPayRemaining').textContent = new Intl.NumberFormat('vi-VN').format(currentInvoiceRemaining) + ' đ';
+        
+        const remainEl = document.getElementById('invPayRemaining');
+        const remainLabel = document.getElementById('invPayRemainingLabel');
+        if (currentSurplus > 0) {
+            remainLabel.textContent = 'Đã thanh toán thừa (Dư bù HĐ cũ)';
+            remainEl.textContent = '+' + new Intl.NumberFormat('vi-VN').format(currentSurplus) + ' đ';
+            remainEl.className = 'text-info font-monospace';
+        } else {
+            remainLabel.textContent = 'Hiện còn thiếu';
+            remainEl.textContent = new Intl.NumberFormat('vi-VN').format(currentInvoiceRemaining) + ' đ';
+            remainEl.className = currentInvoiceRemaining > 0 ? 'text-danger font-monospace' : 'text-success font-monospace';
+        }
 
-        document.getElementById('invPayInputAmount').value = formatNumberWithCommas(currentInvoiceRemaining);
+        document.getElementById('btnFillRemainText').textContent = new Intl.NumberFormat('vi-VN').format(currentInvoiceRemaining) + ' đ';
+        document.getElementById('invPayInputAmount').value = currentInvoiceRemaining > 0 ? formatNumberWithCommas(currentInvoiceRemaining) : '';
+        
         const payDateInput = document.getElementById('invPayDate');
         if (payDateInput) {
             payDateInput.value = new Date().toISOString().substring(0, 10);
         }
+        
+        document.getElementById('invPayNoteInput').value = '';
         previewPaymentRemaining();
+
+        // Tải lịch sử các đợt thanh toán của hóa đơn
+        loadInvoicePayments(inv.id);
 
         modal.show();
     }
 
+    function fillRemainingAmount() {
+        if (currentInvoiceRemaining > 0) {
+            document.getElementById('invPayInputAmount').value = formatNumberWithCommas(currentInvoiceRemaining);
+        } else {
+            document.getElementById('invPayInputAmount').value = '0';
+        }
+        previewPaymentRemaining();
+    }
+
+    function setPayNote(txt) {
+        document.getElementById('invPayNoteInput').value = txt;
+    }
+
     function previewPaymentRemaining() {
         const amount = parseNumberFromCommas(document.getElementById('invPayInputAmount').value);
-        const newRemaining = Math.max(0, currentInvoiceRemaining - amount);
+        const newTotalPaid = currentInvoicePaid + amount;
+        const newRemaining = Math.max(0, currentInvoiceTotal - newTotalPaid);
+        const newSurplus = Math.max(0, newTotalPaid - currentInvoiceTotal);
+
         const previewRemainingEl = document.getElementById('invPayPreviewRemaining');
         const previewStatusEl = document.getElementById('invPayPreviewStatus');
 
-        previewRemainingEl.textContent = new Intl.NumberFormat('vi-VN').format(newRemaining) + ' đ';
-        if (newRemaining <= 0 && amount > 0) {
+        if (newSurplus > 0) {
+            previewRemainingEl.textContent = 'Dư +' + new Intl.NumberFormat('vi-VN').format(newSurplus) + ' đ (Thừa bù HĐ khác)';
+            previewRemainingEl.className = 'fw-bold text-info font-monospace';
+            previewStatusEl.textContent = '✅ Đã thanh toán đủ (Dư bù HĐ cũ)';
+            previewStatusEl.className = 'badge bg-info-subtle text-info py-1 px-2 rounded-pill';
+        } else if (newRemaining <= 0 && amount > 0) {
+            previewRemainingEl.textContent = '0 đ';
             previewRemainingEl.className = 'fw-bold text-success font-monospace';
             previewStatusEl.textContent = '✅ Đã thanh toán đủ 100%';
             previewStatusEl.className = 'badge badge-soft-success py-1 px-2 rounded-pill';
         } else if (amount > 0) {
+            previewRemainingEl.textContent = new Intl.NumberFormat('vi-VN').format(newRemaining) + ' đ';
             previewRemainingEl.className = 'fw-bold text-danger font-monospace';
             previewStatusEl.textContent = '🔄 Thanh toán 1 phần (Còn thiếu)';
             previewStatusEl.className = 'badge badge-soft-warning py-1 px-2 rounded-pill';
         } else {
+            previewRemainingEl.textContent = new Intl.NumberFormat('vi-VN').format(currentInvoiceRemaining) + ' đ';
             previewRemainingEl.className = 'fw-bold text-danger font-monospace';
-            previewStatusEl.textContent = '⏳ Chưa thanh toán đợt này';
+            previewStatusEl.textContent = currentInvoiceRemaining <= 0 ? '✅ Đã thanh toán đủ' : '⏳ Chưa thanh toán thêm đợt này';
             previewStatusEl.className = 'badge badge-soft-warning py-1 px-2 rounded-pill';
         }
+    }
+
+    function loadInvoicePayments(invoiceId) {
+        const tbody = document.getElementById('invPaymentsTableBody');
+        const countBadge = document.getElementById('invPaymentsCountBadge');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center text-muted py-3">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                    <span class="ms-1 small">Đang tải lịch sử các đợt thanh toán...</span>
+                </td>
+            </tr>
+        `;
+
+        fetch(`/invoices/${invoiceId}/payments`)
+            .then(res => res.json())
+            .then(data => {
+                const payments = data.payments || [];
+                countBadge.textContent = `${payments.length} đợt`;
+
+                if (payments.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-3 small">
+                                Chưa có đợt thanh toán nào được ghi nhận cho hóa đơn này.
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                payments.forEach((p, index) => {
+                    const dateFormatted = p.payment_date ? p.payment_date.substring(0, 10).split('-').reverse().join('/') : '---';
+                    const methodText = p.payment_method === 'cash' ? '💵 Tiền mặt' : '💳 Chuyển khoản';
+                    const amountFormatted = new Intl.NumberFormat('vi-VN').format(p.amount) + ' đ';
+                    const noteHtml = p.note ? `<span class="badge bg-light text-dark border">${p.note}</span>` : '<span class="text-muted small">---</span>';
+
+                    html += `
+                        <tr>
+                            <td class="ps-3 fw-bold small text-muted">Đợt ${index + 1}</td>
+                            <td class="small text-nowrap"><i class="bi bi-calendar-check text-success me-1"></i>${dateFormatted}</td>
+                            <td class="text-end fw-bold font-monospace text-success">${amountFormatted}</td>
+                            <td class="small text-muted text-nowrap">${methodText}</td>
+                            <td class="small">${noteHtml}</td>
+                            <td class="pe-3 text-end">
+                                <form action="/invoice-payments/${p.id}" method="POST" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa đợt thanh toán này (${amountFormatted}) không?');">
+                                    <input type="hidden" name="_token" value="${document.querySelector('meta[name=\"csrf-token\"]').getAttribute('content')}">
+                                    <input type="hidden" name="_method" value="DELETE">
+                                    <button type="submit" class="btn btn-link text-danger p-0 shadow-none" title="Xóa đợt thanh toán này">
+                                        <i class="bi bi-trash3"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = html;
+            })
+            .catch(err => {
+                console.error(err);
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-danger py-3 small">
+                            Không thể tải lịch sử thanh toán. Vui lòng thử lại.
+                        </td>
+                    </tr>
+                `;
+            });
     }
 
     function openEditInvoiceModal(inv) {

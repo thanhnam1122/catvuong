@@ -252,6 +252,12 @@
                             <span>Doanh Nghiệp ({{ (Auth::check() && !Auth::user()->isAdmin() && Auth::user()->company_id) ? \App\Models\Partner::where('company_id', Auth::user()->company_id)->count() : \App\Models\Partner::count() }})</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2 rounded-pill fw-medium d-flex align-items-center gap-1 {{ Request::routeIs('dashboard.*') ? 'active bg-primary-subtle text-primary fw-bold' : 'text-secondary' }}" href="{{ route('dashboard.index') }}">
+                            <i class="bi bi-pie-chart-fill text-primary"></i>
+                            <span>Sơ Đồ Phân Tích</span>
+                        </a>
+                    </li>
                     @if(Auth::check() && Auth::user()->isAdmin())
                         <li class="nav-item">
                             <a class="nav-link px-3 py-2 rounded-pill fw-medium d-flex align-items-center gap-1 {{ Request::routeIs('my-company.*') ? 'active bg-primary-subtle text-primary fw-bold' : 'text-secondary' }}" href="{{ route('my-company.index') }}">
@@ -283,6 +289,11 @@
                         <button type="button" class="btn btn-theme-primary btn-sm d-flex align-items-center gap-1 rounded-pill px-3 py-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalCreateInvoiceFlow">
                             <i class="bi bi-plus-circle-fill"></i>
                             <span>+ Thêm Hóa Đơn Xuất Ra</span>
+                        </button>
+                    @elseif(Request::routeIs('dashboard.*'))
+                        <button type="button" class="btn btn-outline-secondary bg-white btn-sm d-flex align-items-center gap-1 rounded-pill px-3 py-2 shadow-sm" onclick="window.print()" title="In hoặc Lưu PDF Báo Cáo Phân Tích">
+                            <i class="bi bi-printer"></i>
+                            <span>In Báo Cáo</span>
                         </button>
                     @else
                         <a href="{{ route('invoice.in') }}" class="btn btn-theme-primary btn-sm d-flex align-items-center gap-1 rounded-pill px-3 py-2 shadow-sm">
