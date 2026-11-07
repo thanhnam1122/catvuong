@@ -72,7 +72,7 @@
                 </div>
 
                 <!-- Phân Loại Theo Dõi -->
-                <div class="col-6 col-sm-6 col-md-2 col-lg-auto" style="min-width: 8.5rem;">
+                <div class="col-6 col-sm-6 col-md-3 col-lg-auto" style="min-width: 10rem;">
                     <label class="form-label text-muted small mb-1 fw-semibold">
                         <i class="bi bi-star me-1 text-warning"></i> Phân loại:
                     </label>
@@ -84,7 +84,7 @@
                 </div>
 
                 <!-- Chọn Kỳ Thời Gian Nhanh -->
-                <div class="col-6 col-sm-6 col-md-2 col-lg-auto" style="min-width: 8.5rem;">
+                <div class="col-6 col-sm-6 col-md-3 col-lg-auto" style="min-width: 11.5rem;">
                     <label class="form-label text-muted small mb-1 fw-semibold">
                         <i class="bi bi-clock-history me-1 text-primary"></i> Kỳ xem:
                     </label>
