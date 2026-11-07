@@ -19,6 +19,10 @@ class InvoiceAttachment extends Model
         'uploaded_by',
     ];
 
+    protected $hidden = [
+        'file_data',
+    ];
+
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class);

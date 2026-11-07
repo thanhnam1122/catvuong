@@ -19,6 +19,10 @@ class PartnerAttachment extends Model
         'uploaded_by',
     ];
 
+    protected $hidden = [
+        'file_data',
+    ];
+
     public function partner(): BelongsTo
     {
         return $this->belongsTo(Partner::class);

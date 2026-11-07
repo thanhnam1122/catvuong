@@ -220,6 +220,24 @@
                     @forelse($invoices as $inv)
                         @php
                             $isOut = $inv->type === 'out';
+                            $invEditData = [
+                                'id' => $inv->id,
+                                'invoice_number' => $inv->invoice_number,
+                                'company_id' => $inv->company_id,
+                                'partner_id' => $inv->partner_id,
+                                'type' => $inv->type,
+                                'title' => $inv->title,
+                                'subtotal' => $inv->subtotal,
+                                'tax_rate' => $inv->tax_rate,
+                                'tax_amount' => $inv->tax_amount,
+                                'paid_amount' => $inv->paid_amount,
+                                'paid_date' => $inv->paid_date,
+                                'issue_date' => $inv->issue_date,
+                                'due_date' => $inv->due_date,
+                                'status' => $inv->status,
+                                'notes' => $inv->notes,
+                                'is_concerned' => $inv->is_concerned,
+                            ];
                         @endphp
                         <tr>
                             <!-- Số hóa đơn (Bấm vào để xem & đính kèm file) -->
@@ -413,7 +431,7 @@
                                                 </button>
                                             </li>
                                             <li>
-                                                <button class="dropdown-item small py-2 rounded-3" type="button" onclick="openEditInvoiceModal({{ json_encode($inv) }})">
+                                                <button class="dropdown-item small py-2 rounded-3" type="button" onclick='openEditInvoiceModal(@json($invEditData))'>
                                                     <i class="bi bi-pencil me-2 text-primary"></i> Sửa hóa đơn
                                                 </button>
                                             </li>

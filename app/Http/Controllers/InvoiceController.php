@@ -62,7 +62,7 @@ class InvoiceController extends Controller
         $sortBy = $request->get('sort_by');
         $order = strtolower($request->get('order', 'asc')) === 'desc' ? 'desc' : 'asc';
 
-        $query = Invoice::with(['company', 'partner', 'debt', 'attachments', 'payments'])
+        $query = Invoice::with(['company', 'partner', 'debt', 'payments'])
             ->withCount('attachments')
             ->where('type', $flow);
 

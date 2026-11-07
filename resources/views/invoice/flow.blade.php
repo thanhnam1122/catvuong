@@ -341,6 +341,30 @@
                         @php
                             $remaining = $inv->remaining_amount;
                             $isPaid = $inv->status === 'paid' || $remaining <= 0;
+                            $invPayData = [
+                                'id' => $inv->id,
+                                'invoice_number' => $inv->invoice_number,
+                                'total_amount' => $inv->total_amount,
+                                'paid_amount' => $inv->paid_amount,
+                                'partner' => $inv->partner ? ['name' => $inv->partner->name] : null,
+                            ];
+                            $invEditData = [
+                                'id' => $inv->id,
+                                'invoice_number' => $inv->invoice_number,
+                                'company_id' => $inv->company_id,
+                                'partner_id' => $inv->partner_id,
+                                'title' => $inv->title,
+                                'subtotal' => $inv->subtotal,
+                                'tax_rate' => $inv->tax_rate,
+                                'tax_amount' => $inv->tax_amount,
+                                'paid_amount' => $inv->paid_amount,
+                                'paid_date' => $inv->paid_date,
+                                'issue_date' => $inv->issue_date,
+                                'due_date' => $inv->due_date,
+                                'status' => $inv->status,
+                                'notes' => $inv->notes,
+                                'is_concerned' => $inv->is_concerned,
+                            ];
                         @endphp
                         <tr>
                             <!-- Số hóa đơn (Bấm vào để xem & đính kèm file) -->
@@ -533,7 +557,7 @@
                                     </form>
                                 @elseif($inv->paid_amount > 0 && $remaining > 0)
                                     <div class="d-inline-flex flex-column align-items-center">
-                                        <button type="button" class="badge py-1 px-2 rounded-pill border-0 shadow-none mb-1 text-nowrap" style="background-color: #fef3c7; color: #d97706; border: 0.0625rem solid #fde68a !important;" onclick='openInvoicePaymentModal(@json($inv))' title="Nhấn để tiếp tục thanh toán">
+                                        <button type="button" class="badge py-1 px-2 rounded-pill border-0 shadow-none mb-1 text-nowrap" style="background-color: #fef3c7; color: #d97706; border: 0.0625rem solid #fde68a !important;" onclick='openInvoicePaymentModal(@json($invPayData))' title="Nhấn để tiếp tục thanh toán">
                                             <i class="bi bi-pie-chart-fill"></i> Thanh toán 1 phần
                                         </button>
                                         <span class="fw-bold font-monospace text-danger text-nowrap" style="font-size: 0.73rem;">
@@ -562,7 +586,7 @@
                             <!-- Thao tác: Nút Thanh toán dài ra trên 1 dòng -->
                             <td class="text-end">
                                 <div class="d-inline-flex gap-1 align-items-center justify-content-end">
-                                    <button type="button" class="btn btn-sm {{ $remaining > 0 ? 'btn-theme-primary' : 'btn-outline-success' }} px-3 py-1 rounded-pill d-inline-flex align-items-center gap-1 text-nowrap shadow-sm" title="Ghi nhận / Quản lý thanh toán" onclick='openInvoicePaymentModal(@json($inv))'>
+                                    <button type="button" class="btn btn-sm {{ $remaining > 0 ? 'btn-theme-primary' : 'btn-outline-success' }} px-3 py-1 rounded-pill d-inline-flex align-items-center gap-1 text-nowrap shadow-sm" title="Ghi nhận / Quản lý thanh toán" onclick='openInvoicePaymentModal(@json($invPayData))'>
                                         <i class="bi bi-credit-card-2-front"></i>
                                         <span>Thanh toán</span>
                                     </button>
@@ -579,7 +603,7 @@
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-4 p-2">
                                             <li>
-                                                <button class="dropdown-item small py-2 rounded-3" type="button" onclick='openInvoicePaymentModal(@json($inv))'>
+                                                <button class="dropdown-item small py-2 rounded-3" type="button" onclick='openInvoicePaymentModal(@json($invPayData))'>
                                                     <i class="bi bi-clock-history me-2 text-success"></i> Lịch sử thanh toán ({{ $inv->payments ? $inv->payments->count() : 0 }})
                                                 </button>
                                             </li>
@@ -594,7 +618,7 @@
                                                 </button>
                                             </li>
                                             <li>
-                                                <button class="dropdown-item small py-2 rounded-3" type="button" onclick="openEditInvoiceModal({{ json_encode($inv) }})">
+                                                <button class="dropdown-item small py-2 rounded-3" type="button" onclick='openEditInvoiceModal(@json($invEditData))'>
                                                     <i class="bi bi-pencil me-2 text-primary"></i> Sửa hóa đơn
                                                 </button>
                                             </li>

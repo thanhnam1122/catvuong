@@ -22,7 +22,7 @@ class CompanyController extends Controller
         $user = Auth::user();
         $isAdmin = $user ? $user->isAdmin() : true;
 
-        $query = Partner::withCount(['invoices', 'debts', 'attachments'])->with(['company', 'attachments']);
+        $query = Partner::withCount(['invoices', 'debts', 'attachments'])->with(['company']);
 
         // Phân quyền dữ liệu theo vai trò tài khoản:
         // Tài khoản CTY: chỉ hiển thị doanh nghiệp do chính CTY đó nhập vào

@@ -98,6 +98,22 @@
     <!-- Danh sách thẻ thông tin doanh nghiệp (Profile Card View) -->
     <div class="row g-3 mb-4">
         @forelse($partners as $partner)
+            @php
+                $partnerEditData = [
+                    'id' => $partner->id,
+                    'name' => $partner->name,
+                    'tax_code' => $partner->tax_code,
+                    'code' => $partner->code,
+                    'type' => $partner->type,
+                    'company_id' => $partner->company_id,
+                    'representative' => $partner->representative,
+                    'position' => $partner->position,
+                    'phone' => $partner->phone,
+                    'email' => $partner->email,
+                    'address' => $partner->address,
+                    'notes' => $partner->notes,
+                ];
+            @endphp
             <div class="col-12 col-md-6 col-xl-4">
                 <div class="card border-0 rounded-4 shadow-sm h-100 bg-white" style="border: 0.0625rem solid var(--border-soft) !important;">
                     <div class="card-body p-4 d-flex flex-column justify-content-between">
@@ -144,7 +160,7 @@
                                             </button>
                                         </li>
                                         <li>
-                                            <button class="dropdown-item small py-2 rounded-3" type="button" onclick="openEditCompanyModal({{ json_encode($partner) }})">
+                                            <button class="dropdown-item small py-2 rounded-3" type="button" onclick='openEditCompanyModal(@json($partnerEditData))'>
                                                 <i class="bi bi-pencil me-2 text-primary"></i> Sửa thông tin
                                             </button>
                                         </li>
