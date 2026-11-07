@@ -239,12 +239,15 @@ class DashboardController extends Controller
         $sortedByIn = $partnerStats;
         usort($sortedByIn, fn($a, $b) => $b['in_total'] <=> $a['in_total']);
         $pieInLabels = [];
+        $pieInFullNames = [];
         $pieInData = [];
         $pieInPercents = [];
         $top5InSum = 0;
         foreach (array_slice($sortedByIn, 0, 5) as $item) {
             if ($item['in_total'] > 0) {
-                $pieInLabels[] = mb_strlen($item['partner']->name) > 18 ? mb_substr($item['partner']->name, 0, 16) . '..' : $item['partner']->name;
+                $fullName = $item['partner']->name;
+                $pieInFullNames[] = $fullName;
+                $pieInLabels[] = mb_strlen($fullName) > 18 ? mb_substr($fullName, 0, 16) . '..' : $fullName;
                 $pieInData[] = round($item['in_total'], 2);
                 $pieInPercents[] = $item['in_percent'];
                 $top5InSum += $item['in_total'];
@@ -253,6 +256,7 @@ class DashboardController extends Controller
         $otherIn = max(0, $totalIn - $top5InSum);
         if ($otherIn > 0) {
             $pieInLabels[] = 'Khác';
+            $pieInFullNames[] = 'Các doanh nghiệp khác';
             $pieInData[] = round($otherIn, 2);
             $pieInPercents[] = round(($otherIn / $totalIn) * 100, 1);
         }
@@ -261,12 +265,15 @@ class DashboardController extends Controller
         $sortedByOut = $partnerStats;
         usort($sortedByOut, fn($a, $b) => $b['out_total'] <=> $a['out_total']);
         $pieOutLabels = [];
+        $pieOutFullNames = [];
         $pieOutData = [];
         $pieOutPercents = [];
         $top5OutSum = 0;
         foreach (array_slice($sortedByOut, 0, 5) as $item) {
             if ($item['out_total'] > 0) {
-                $pieOutLabels[] = mb_strlen($item['partner']->name) > 18 ? mb_substr($item['partner']->name, 0, 16) . '..' : $item['partner']->name;
+                $fullName = $item['partner']->name;
+                $pieOutFullNames[] = $fullName;
+                $pieOutLabels[] = mb_strlen($fullName) > 18 ? mb_substr($fullName, 0, 16) . '..' : $fullName;
                 $pieOutData[] = round($item['out_total'], 2);
                 $pieOutPercents[] = $item['out_percent'];
                 $top5OutSum += $item['out_total'];
@@ -275,6 +282,7 @@ class DashboardController extends Controller
         $otherOut = max(0, $totalOut - $top5OutSum);
         if ($otherOut > 0) {
             $pieOutLabels[] = 'Khác';
+            $pieOutFullNames[] = 'Các doanh nghiệp khác';
             $pieOutData[] = round($otherOut, 2);
             $pieOutPercents[] = round(($otherOut / $totalOut) * 100, 1);
         }
@@ -312,9 +320,11 @@ class DashboardController extends Controller
             'barChartIn',
             'barChartOut',
             'pieInLabels',
+            'pieInFullNames',
             'pieInData',
             'pieInPercents',
             'pieOutLabels',
+            'pieOutFullNames',
             'pieOutData',
             'pieOutPercents'
         ));

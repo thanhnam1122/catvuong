@@ -250,26 +250,24 @@
         </div>
     </div>
 
-    <!-- HÀNG BIỂU ĐỒ 1: TỶ LỆ % ĐẦU VÀO VS ĐẦU RA & SO SÁNH TOP DOANH NGHIỆP -->
+    <!-- HÀNG BIỂU ĐỒ TỶ TRỌNG: CƠ CẤU ĐẦU VÀO/ĐẦU RA & TỶ TRỌNG THEO TỪNG DOANH NGHIỆP -->
     <div class="row g-3 mb-4">
-        <!-- Biểu đồ Donut: Tỷ lệ % Đầu Vào vs Đầu Ra -->
-        <div class="col-12 col-lg-5">
+        <!-- 1. Cơ Cấu Tỷ Lệ % Đầu Vào vs Đầu Ra -->
+        <div class="col-12 col-xl-4 col-md-6">
             <div class="card border-0 rounded-4 shadow-sm h-100 bg-white" style="border: 0.0625rem solid var(--border-soft) !important;">
-                <div class="card-header bg-transparent border-0 pt-3 px-3 px-md-4 d-flex align-items-center justify-content-between">
-                    <div>
-                        <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                            <i class="bi bi-pie-chart text-primary"></i> Cơ Cấu Tỷ Lệ % Đầu Vào vs Đầu Ra
-                        </h6>
-                        <span class="text-muted small">Tỷ trọng phần trăm trên tổng luân chuyển tiền tệ</span>
-                    </div>
+                <div class="card-header bg-transparent border-0 pt-3 px-3 px-md-4">
+                    <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-pie-chart text-primary"></i> Cơ Cấu Đầu Vào vs Đầu Ra
+                    </h6>
+                    <span class="text-muted small">Tỷ trọng phần trăm trên tổng luân chuyển tiền tệ</span>
                 </div>
-                <div class="card-body p-3 p-md-4 d-flex flex-column align-items-center justify-content-center">
+                <div class="card-body p-3 p-md-4 d-flex flex-column align-items-center justify-content-between">
                     @if($totalVolume > 0)
-                        <div style="position: relative; width: 100%; max-width: 17rem; height: 17rem;">
+                        <div style="position: relative; width: 100%; max-width: 15rem; height: 15rem;">
                             <canvas id="chartInOutRatio"></canvas>
                         </div>
                         <!-- Bảng số liệu chi tiết phía dưới biểu đồ -->
-                        <div class="w-100 mt-4 pt-3 border-top">
+                        <div class="w-100 mt-3 pt-3 border-top">
                             <div class="row g-2 text-center">
                                 <div class="col-6">
                                     <div class="p-2 rounded-3 bg-danger-subtle">
@@ -301,47 +299,18 @@
             </div>
         </div>
 
-        <!-- Biểu đồ Cột So Sánh: Đầu Vào vs Đầu Ra Của Các Doanh Nghiệp Lớn Nhất -->
-        <div class="col-12 col-lg-7">
-            <div class="card border-0 rounded-4 shadow-sm h-100 bg-white" style="border: 0.0625rem solid var(--border-soft) !important;">
-                <div class="card-header bg-transparent border-0 pt-3 px-3 px-md-4 d-flex align-items-center justify-content-between">
-                    <div>
-                        <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                            <i class="bi bi-bar-chart-fill text-primary"></i> So Sánh Đầu Vào &amp; Đầu Ra Theo Từng Doanh Nghiệp
-                        </h6>
-                        <span class="text-muted small">Top các đối tác có khối lượng giao dịch mua bán lớn nhất (VNĐ)</span>
-                    </div>
-                </div>
-                <div class="card-body p-3 p-md-4">
-                    @if(count($barChartLabels) > 0)
-                        <div style="position: relative; width: 100%; height: 21rem;">
-                            <canvas id="chartTopPartners"></canvas>
-                        </div>
-                    @else
-                        <div class="text-center py-5 text-muted">
-                            <i class="bi bi-bar-chart fs-1 d-block mb-2 text-secondary opacity-50"></i>
-                            Chưa có dữ liệu giao dịch của doanh nghiệp nào.
-                        </div>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- HÀNG BIỂU ĐỒ 2: CƠ CẤU TỶ TRỌNG % THEO DOANH NGHIỆP & XU HƯỚNG 12 THÁNG -->
-    <div class="row g-3 mb-4">
-        <!-- Cơ Cấu Tỷ Trọng % Đầu Vào Theo Doanh Nghiệp -->
-        <div class="col-12 col-lg-6">
+        <!-- 2. Cơ Cấu Tỷ Trọng % Đầu Vào Theo Doanh Nghiệp -->
+        <div class="col-12 col-xl-4 col-md-6">
             <div class="card border-0 rounded-4 shadow-sm h-100 bg-white" style="border: 0.0625rem solid var(--border-soft) !important;">
                 <div class="card-header bg-transparent border-0 pt-3 px-3 px-md-4">
                     <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                        <i class="bi bi-pie-chart-fill text-danger"></i> Tỷ Trọng % Đầu Vào Theo Doanh Nghiệp
+                        <i class="bi bi-pie-chart-fill text-danger"></i> Tỷ Trọng % Đầu Vào Theo DN
                     </h6>
-                    <span class="text-muted small">Doanh nghiệp nào chiếm bao nhiêu % chi phí mua hàng đầu vào</span>
+                    <span class="text-muted small">Doanh nghiệp nào chiếm bao nhiêu % chi phí mua hàng</span>
                 </div>
-                <div class="card-body p-3 p-md-4">
+                <div class="card-body p-3 p-md-4 d-flex flex-column align-items-center justify-content-center">
                     @if(count($pieInData) > 0)
-                        <div style="position: relative; width: 100%; height: 16rem;">
+                        <div style="position: relative; width: 100%; height: 18rem;">
                             <canvas id="chartPieIn"></canvas>
                         </div>
                     @else
@@ -354,18 +323,18 @@
             </div>
         </div>
 
-        <!-- Cơ Cấu Tỷ Trọng % Đầu Ra Theo Doanh Nghiệp -->
-        <div class="col-12 col-lg-6">
+        <!-- 3. Cơ Cấu Tỷ Trọng % Đầu Ra Theo Doanh Nghiệp -->
+        <div class="col-12 col-xl-4 col-md-12">
             <div class="card border-0 rounded-4 shadow-sm h-100 bg-white" style="border: 0.0625rem solid var(--border-soft) !important;">
                 <div class="card-header bg-transparent border-0 pt-3 px-3 px-md-4">
                     <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                        <i class="bi bi-pie-chart-fill text-primary"></i> Tỷ Trọng % Đầu Ra Theo Doanh Nghiệp
+                        <i class="bi bi-pie-chart-fill text-primary"></i> Tỷ Trọng % Đầu Ra Theo DN
                     </h6>
                     <span class="text-muted small">Doanh nghiệp nào đóng góp bao nhiêu % doanh thu bán ra</span>
                 </div>
-                <div class="card-body p-3 p-md-4">
+                <div class="card-body p-3 p-md-4 d-flex flex-column align-items-center justify-content-center">
                     @if(count($pieOutData) > 0)
-                        <div style="position: relative; width: 100%; height: 16rem;">
+                        <div style="position: relative; width: 100%; height: 18rem;">
                             <canvas id="chartPieOut"></canvas>
                         </div>
                     @else
@@ -377,7 +346,10 @@
                 </div>
             </div>
         </div>
+    </div>
 
+    <!-- HÀNG BIỂU ĐỒ 2: XU HƯỚNG 12 THÁNG -->
+    <div class="row g-3 mb-4">
         <!-- Biểu Đồ Xu Hướng 12 Tháng Trong Năm -->
         <div class="col-12">
             <div class="card border-0 rounded-4 shadow-sm bg-white" style="border: 0.0625rem solid var(--border-soft) !important;">
@@ -648,69 +620,11 @@
             });
         }
 
-        // 2. BIỂU ĐỒ CỘT: SO SÁNH TOP DOANH NGHIỆP
-        const ctxTop = document.getElementById('chartTopPartners');
-        if (ctxTop) {
-            new Chart(ctxTop, {
-                type: 'bar',
-                data: {
-                    labels: {!! json_encode($barChartLabels) !!},
-                    datasets: [
-                        {
-                            label: 'Đầu Vào (Mua Hàng)',
-                            data: {!! json_encode($barChartIn) !!},
-                            backgroundColor: '#ef4444',
-                            borderRadius: 6,
-                            maxBarThickness: 32
-                        },
-                        {
-                            label: 'Đầu Ra (Bán Hàng)',
-                            data: {!! json_encode($barChartOut) !!},
-                            backgroundColor: '#0284c7',
-                            borderRadius: 6,
-                            maxBarThickness: 32
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                            labels: {
-                                usePointStyle: true,
-                                boxWidth: 8
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return ' ' + context.dataset.label + ': ' + formatCurrencyVND(context.raw || 0);
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: { display: false }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    if (value >= 1e9) return (value / 1e9).toFixed(1) + ' tỷ';
-                                    if (value >= 1e6) return (value / 1e6).toFixed(0) + ' tr';
-                                    return value;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
+        // Tên đầy đủ của các doanh nghiệp dùng khi hover tooltip
+        const pieInFullNames = {!! json_encode($pieInFullNames ?? []) !!};
+        const pieOutFullNames = {!! json_encode($pieOutFullNames ?? []) !!};
 
-        // 3. BIỂU ĐỒ TỶ TRỌNG % ĐẦU VÀO
+        // 2. BIỂU ĐỒ TỶ TRỌNG % ĐẦU VÀO THEO DOANH NGHIỆP
         const ctxPieIn = document.getElementById('chartPieIn');
         if (ctxPieIn) {
             new Chart(ctxPieIn, {
@@ -740,11 +654,18 @@
                         },
                         tooltip: {
                             callbacks: {
+                                title: function(contexts) {
+                                    if (!contexts.length) return '';
+                                    const idx = contexts[0].dataIndex;
+                                    return pieInFullNames[idx] || contexts[0].label;
+                                },
                                 label: function(context) {
+                                    const idx = context.dataIndex;
+                                    const fullName = pieInFullNames[idx] || context.label;
                                     const val = context.raw || 0;
                                     const total = {{ $totalIn }};
                                     const percent = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
-                                    return ' ' + context.label + ': ' + formatCurrencyVND(val) + ' (' + percent + '%)';
+                                    return ' ' + fullName + ': ' + formatCurrencyVND(val) + ' (' + percent + '%)';
                                 }
                             }
                         }
@@ -754,7 +675,7 @@
             });
         }
 
-        // 4. BIỂU ĐỒ TỶ TRỌNG % ĐẦU RA
+        // 3. BIỂU ĐỒ TỶ TRỌNG % ĐẦU RA THEO DOANH NGHIỆP
         const ctxPieOut = document.getElementById('chartPieOut');
         if (ctxPieOut) {
             new Chart(ctxPieOut, {
@@ -784,11 +705,18 @@
                         },
                         tooltip: {
                             callbacks: {
+                                title: function(contexts) {
+                                    if (!contexts.length) return '';
+                                    const idx = contexts[0].dataIndex;
+                                    return pieOutFullNames[idx] || contexts[0].label;
+                                },
                                 label: function(context) {
+                                    const idx = context.dataIndex;
+                                    const fullName = pieOutFullNames[idx] || context.label;
                                     const val = context.raw || 0;
                                     const total = {{ $totalOut }};
                                     const percent = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
-                                    return ' ' + context.label + ': ' + formatCurrencyVND(val) + ' (' + percent + '%)';
+                                    return ' ' + fullName + ': ' + formatCurrencyVND(val) + ' (' + percent + '%)';
                                 }
                             }
                         }

@@ -418,7 +418,7 @@
                                     <a href="javascript:void(0)" 
                                        class="fw-semibold text-dark text-truncate d-inline-block text-decoration-none company-detail-link" 
                                        style="max-width: 13rem;" 
-                                       title="Nhấn để xem thông tin doanh nghiệp"
+                                       title="{{ $inv->partner->name }}" 
                                        onclick='showPartnerDetail(@json($inv->partner))'>
                                         {{ $inv->partner->name }}
                                     </a>
