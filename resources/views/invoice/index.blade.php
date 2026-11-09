@@ -591,8 +591,8 @@
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold text-dark small mb-1">Thuế suất VAT (%)</label>
                             <select name="tax_rate" id="inv_tax_rate" class="form-select rounded-3 shadow-none" onchange="calculateInvoiceTotal()">
+                                <option value="8" selected>8% (Thuế GTGT ưu đãi)</option>
                                 <option value="10">10% (Thuế GTGT phổ thông)</option>
-                                <option value="8">8% (Thuế GTGT ưu đãi)</option>
                                 <option value="5">5% (Thuế GTGT 5%)</option>
                                 <option value="0">0% (Không chịu thuế)</option>
                             </select>

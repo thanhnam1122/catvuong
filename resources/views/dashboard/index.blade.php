@@ -371,22 +371,32 @@
     </div>
 
     <!-- BẢNG SO SÁNH & THỐNG KÊ CHI TIẾT TẤT CẢ DOANH NGHIỆP -->
-    <div class="card border-0 rounded-4 shadow-sm bg-white mb-4" style="border: 0.0625rem solid var(--border-soft) !important;">
+    <div class="card border-0 rounded-4 shadow-sm bg-white mb-4" id="analyticsTableCard" style="border: 0.0625rem solid var(--border-soft) !important;">
         <div class="card-header bg-transparent border-0 pt-3 px-3 px-md-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
             <div>
                 <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                     <i class="bi bi-table text-primary"></i> Bảng Phân Tích &amp; So Sánh Chi Tiết Từng Doanh Nghiệp
                 </h6>
-                <span class="text-muted small">Tổng hợp số tiền, tỷ lệ % tỷ trọng, chênh lệch và tình trạng thanh toán của từng đối tác</span>
+                <span class="text-muted small">Tổng hợp số tiền, tỷ lệ % tỷ trọng, chênh lệch và tình trạng thanh toán của từng đối tác (Hiển thị 10 DN / trang)</span>
             </div>
             <!-- Ô tìm nhanh đối tác trong bảng -->
-            <div style="width: 16rem;">
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-light border-end-0 rounded-start-pill text-muted">
-                        <i class="bi bi-search"></i>
-                    </span>
-                    <input type="text" id="tableQuickSearch" class="form-control rounded-end-pill shadow-none" placeholder="Tìm tên đối tác trong bảng..." onkeyup="filterAnalyticsTable(this.value)">
-                </div>
+            <div style="width: 17rem;">
+                <form action="{{ route('dashboard.index') }}#analyticsTableCard" method="GET" class="m-0">
+                    @foreach(request()->except(['table_search', 'page']) as $k => $v)
+                        <input type="hidden" name="{{ $k }}" value="{{ $v }}">
+                    @endforeach
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light border-end-0 rounded-start-pill text-muted">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" name="table_search" id="tableQuickSearch" class="form-control shadow-none {{ !empty($tableSearch) ? '' : 'rounded-end-pill' }}" placeholder="Tìm đối tác trong bảng..." value="{{ $tableSearch ?? '' }}" onkeyup="filterAnalyticsTable(this.value)">
+                        @if(!empty($tableSearch))
+                            <a href="{{ request()->fullUrlWithQuery(['table_search' => null, 'page' => null]) }}#analyticsTableCard" class="btn btn-outline-secondary rounded-end-pill px-2 d-flex align-items-center" title="Xóa tìm kiếm">
+                                <i class="bi bi-x-lg"></i>
+                            </a>
+                        @endif
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -416,7 +426,7 @@
                                 $p = $item['partner'];
                             @endphp
                             <tr class="partner-row {{ !$item['has_invoices'] ? 'opacity-75' : '' }}">
-                                <td class="ps-4 fw-semibold text-muted small">{{ $index + 1 }}</td>
+                                <td class="ps-4 fw-semibold text-muted small">{{ ($partnerStats->currentPage() - 1) * $partnerStats->perPage() + $loop->iteration }}</td>
                                 <td>
                                     <div class="fw-bold text-dark partner-name">{{ $p->name }}</div>
                                     <div class="text-muted small d-flex flex-wrap align-items-center gap-2">
@@ -539,6 +549,17 @@
                 </table>
             </div>
         </div>
+
+        @if($partnerStats->hasPages())
+            <div class="card-footer bg-white py-2 px-3 px-md-4 border-top d-flex align-items-center justify-content-between flex-wrap gap-2" style="border-color: var(--border-soft) !important;">
+                <div class="text-muted small">
+                    Hiển thị <strong>{{ $partnerStats->firstItem() }}</strong> - <strong>{{ $partnerStats->lastItem() }}</strong> trong tổng số <strong>{{ $partnerStats->total() }}</strong> doanh nghiệp
+                </div>
+                <div>
+                    {{ $partnerStats->links('pagination::bootstrap-5') }}
+                </div>
+            </div>
+        @endif
     </div>
 </div>
 @endsection

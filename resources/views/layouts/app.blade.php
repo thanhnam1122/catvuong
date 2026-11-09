@@ -161,6 +161,18 @@
             border-radius: 0.5rem;
         }
 
+        .badge-soft-purple {
+            background-color: #f3e8ff;
+            color: #7e22ce;
+            font-weight: 600;
+            border: 0.0625rem solid #d8b4fe;
+            border-radius: 0.5rem;
+        }
+
+        .text-purple {
+            color: #7e22ce !important;
+        }
+
         /* Nút màu xanh dịu chuẩn chỉnh */
         .btn-soft-primary {
             background-color: var(--blue-soft-100);

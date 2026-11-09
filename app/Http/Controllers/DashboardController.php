@@ -9,6 +9,8 @@ use App\Models\Invoice;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 
 class DashboardController extends Controller
 {
@@ -86,7 +88,9 @@ class DashboardController extends Controller
         $totalIn = (float) (clone $inQuery)->sum('total_amount');
         $countIn = (clone $inQuery)->count();
         $paidIn = (float) (clone $inQuery)->sum('paid_amount');
-        $remainIn = max(0, $totalIn - $paidIn);
+        $remainIn = (float) ((clone $inQuery)->where('status', '!=', 'cancelled')
+            ->selectRaw('SUM(CASE WHEN total_amount > paid_amount THEN (total_amount - paid_amount) ELSE 0 END) as rem')
+            ->value('rem') ?? 0);
         $paidInPercent = $totalIn > 0 ? round(($paidIn / $totalIn) * 100, 1) : 0;
 
         // 2. Thống kê tổng hợp Đầu Ra (out)
@@ -94,7 +98,9 @@ class DashboardController extends Controller
         $totalOut = (float) (clone $outQuery)->sum('total_amount');
         $countOut = (clone $outQuery)->count();
         $paidOut = (float) (clone $outQuery)->sum('paid_amount');
-        $remainOut = max(0, $totalOut - $paidOut);
+        $remainOut = (float) ((clone $outQuery)->where('status', '!=', 'cancelled')
+            ->selectRaw('SUM(CASE WHEN total_amount > paid_amount THEN (total_amount - paid_amount) ELSE 0 END) as rem')
+            ->value('rem') ?? 0);
         $paidOutPercent = $totalOut > 0 ? round(($paidOut / $totalOut) * 100, 1) : 0;
 
         // 3. Tỷ lệ % Luân Chuyển Dòng Tiền & Cân Đối
@@ -113,7 +119,8 @@ class DashboardController extends Controller
                 'type',
                 DB::raw('COUNT(*) as inv_count'),
                 DB::raw('COALESCE(SUM(total_amount), 0) as total_amount'),
-                DB::raw('COALESCE(SUM(paid_amount), 0) as paid_amount')
+                DB::raw('COALESCE(SUM(paid_amount), 0) as paid_amount'),
+                DB::raw("COALESCE(SUM(CASE WHEN status != 'cancelled' AND total_amount > paid_amount THEN (total_amount - paid_amount) ELSE 0 END), 0) as remain_amount")
             )
             ->groupBy('partner_id', 'type')
             ->get();
@@ -128,14 +135,14 @@ class DashboardController extends Controller
             $pInTotal = $inRow ? (float)$inRow->total_amount : 0;
             $pInCount = $inRow ? (int)$inRow->inv_count : 0;
             $pInPaid = $inRow ? (float)$inRow->paid_amount : 0;
-            $pInRemain = max(0, $pInTotal - $pInPaid);
+            $pInRemain = $inRow ? (float)$inRow->remain_amount : 0;
             $pInPercent = $totalIn > 0 ? round(($pInTotal / $totalIn) * 100, 1) : 0;
             $pInPaidRate = $pInTotal > 0 ? round(($pInPaid / $pInTotal) * 100, 1) : 0;
 
             $pOutTotal = $outRow ? (float)$outRow->total_amount : 0;
             $pOutCount = $outRow ? (int)$outRow->inv_count : 0;
             $pOutPaid = $outRow ? (float)$outRow->paid_amount : 0;
-            $pOutRemain = max(0, $pOutTotal - $pOutPaid);
+            $pOutRemain = $outRow ? (float)$outRow->remain_amount : 0;
             $pOutPercent = $totalOut > 0 ? round(($pOutTotal / $totalOut) * 100, 1) : 0;
             $pOutPaidRate = $pOutTotal > 0 ? round(($pOutPaid / $pOutTotal) * 100, 1) : 0;
 
@@ -287,6 +294,35 @@ class DashboardController extends Controller
             $pieOutPercents[] = round(($otherOut / $totalOut) * 100, 1);
         }
 
+        // 8. Lọc tìm kiếm theo tên / MST đối tác trong bảng chi tiết nếu có
+        $tableSearch = trim((string)$request->get('table_search', ''));
+        $tablePartnerStats = $partnerStats;
+        if ($tableSearch !== '') {
+            $tablePartnerStats = array_values(array_filter($tablePartnerStats, function ($item) use ($tableSearch) {
+                $name = $item['partner']->name ?? '';
+                $taxCode = $item['partner']->tax_code ?? '';
+                return mb_stripos($name, $tableSearch) !== false || mb_stripos($taxCode, $tableSearch) !== false;
+            }));
+        }
+
+        // 9. Phân trang cho Bảng Phân Tích & So Sánh (10 doanh nghiệp mỗi trang)
+        $currentPage = Paginator::resolveCurrentPage('page');
+        $perPage = 10;
+        $currentItems = array_slice($tablePartnerStats, ($currentPage - 1) * $perPage, $perPage);
+        $paginatedPartnerStats = new LengthAwarePaginator(
+            $currentItems,
+            count($tablePartnerStats),
+            $perPage,
+            $currentPage,
+            [
+                'path' => Paginator::resolveCurrentPath(),
+                'pageName' => 'page',
+            ]
+        );
+        $paginatedPartnerStats->withQueryString();
+        $paginatedPartnerStats->fragment('analyticsTableCard');
+        $partnerStats = $paginatedPartnerStats;
+
         return view('dashboard.index', compact(
             'isAdmin',
             'companies',
@@ -313,6 +349,7 @@ class DashboardController extends Controller
             'netDiff',
             'diffPercent',
             'partnerStats',
+            'tableSearch',
             'activePartnerCount',
             'targetYear',
             'monthlyData',

@@ -81,12 +81,16 @@ class DebtController extends Controller
         // Họ nợ tôi (Receivables)
         $totalReceivable = (clone $statsQuery)->where('type', 'receivable')->sum('amount');
         $paidReceivable = (clone $statsQuery)->where('type', 'receivable')->sum('paid_amount');
-        $remainingReceivable = max(0, $totalReceivable - $paidReceivable);
+        $remainingReceivable = (float) ((clone $statsQuery)->where('type', 'receivable')
+            ->selectRaw('SUM(CASE WHEN amount > paid_amount THEN (amount - paid_amount) ELSE 0 END) as rem')
+            ->value('rem') ?? 0);
 
         // Tôi nợ họ (Payables)
         $totalPayable = (clone $statsQuery)->where('type', 'payable')->sum('amount');
         $paidPayable = (clone $statsQuery)->where('type', 'payable')->sum('paid_amount');
-        $remainingPayable = max(0, $totalPayable - $paidPayable);
+        $remainingPayable = (float) ((clone $statsQuery)->where('type', 'payable')
+            ->selectRaw('SUM(CASE WHEN amount > paid_amount THEN (amount - paid_amount) ELSE 0 END) as rem')
+            ->value('rem') ?? 0);
 
         // Công nợ ròng (Net Receivable)
         $netDebt = $remainingReceivable - $remainingPayable;

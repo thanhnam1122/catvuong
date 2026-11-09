@@ -94,6 +94,7 @@
                         <option value="unpaid" {{ $status == 'unpaid' ? 'selected' : '' }}>⏳ Chưa thanh toán</option>
                         <option value="partial" {{ $status == 'partial' ? 'selected' : '' }}>🔄 Thanh toán 1 phần</option>
                         <option value="paid" {{ $status == 'paid' ? 'selected' : '' }}>✅ Đã thanh toán</option>
+                        <option value="overpaid" {{ $status == 'overpaid' ? 'selected' : '' }}>🟣 Chuyển dư</option>
                         <option value="cancelled" {{ $status == 'cancelled' ? 'selected' : '' }}>❌ Đã hủy</option>
                     </select>
                 </div>
@@ -229,8 +230,11 @@
                 <div class="fs-4 fw-bold text-success mb-1">
                     {{ number_format($totalPaid, 0, ',', '.') }} <span class="fs-6 fw-normal text-muted">đ</span>
                 </div>
-                <div class="small text-muted border-top pt-2 mt-2" style="font-size: 0.8rem;">
-                    {{ $isOut ? 'Khách hàng đã thanh toán xong' : 'Đã chuyển tiền cho nhà cung cấp' }}
+                <div class="small text-muted border-top pt-2 mt-2 d-flex align-items-center justify-content-between" style="font-size: 0.8rem;">
+                    <span>{{ $isOut ? 'Khách hàng đã thanh toán xong' : 'Đã chuyển tiền cho nhà cung cấp' }}</span>
+                    @if(isset($totalSurplus) && $totalSurplus > 0)
+                        <span class="badge bg-info-subtle text-info border border-info-subtle" title="Số tiền thanh toán vượt quá giá trị hóa đơn">+{{ number_format($totalSurplus, 0, ',', '.') }} đ</span>
+                    @endif
                 </div>
             </div>
         </div>
@@ -331,7 +335,22 @@
                         <th class="text-end text-nowrap" style="width: 9rem;">Đã Thanh Toán</th>
                         <th class="text-nowrap" style="width: 11.5rem;">Lịch Sử Thanh Toán</th>
                         <th class="text-end text-nowrap" style="width: 9rem;">Còn Lại</th>
-                        <th class="text-nowrap" style="width: 7.5rem;">Ngày Lập</th>
+                        <th class="text-nowrap" style="width: 7.5rem;">
+                            @php
+                                $isSortedByDate = ($sortBy === 'date');
+                                $nextDateOrder = ($isSortedByDate && $order === 'asc') ? 'desc' : 'asc';
+                            @endphp
+                            <a href="{{ request()->fullUrlWithQuery(['sort_by' => 'date', 'order' => $nextDateOrder]) }}" 
+                               class="text-decoration-none text-dark d-inline-flex align-items-center gap-1 shadow-none" 
+                               title="{{ $isSortedByDate ? ($order === 'asc' ? 'Đang lọc: Cũ đến mới (Bấm để đổi sang Mới đến cũ)' : 'Đang lọc: Mới đến cũ (Bấm để đổi sang Cũ đến mới)') : 'Bấm để lọc theo ngày lập' }}">
+                                <span>Ngày Lập</span>
+                                @if($isSortedByDate)
+                                    <i class="bi {{ $order === 'asc' ? 'bi-sort-numeric-down' : 'bi-sort-numeric-down-alt' }} text-primary" style="font-size: 0.8rem;"></i>
+                                @else
+                                    <i class="bi bi-arrow-down-up text-muted opacity-50" style="font-size: 0.7rem;"></i>
+                                @endif
+                            </a>
+                        </th>
                         <th class="text-center text-nowrap" style="width: 8.5rem;">Trạng Thái</th>
                         <th class="text-end text-nowrap" style="width: 10.5rem;">Thao Tác</th>
                     </tr>
@@ -544,10 +563,15 @@
 
                             <!-- Trạng thái -->
                             <td class="text-center text-nowrap">
-                                @if($inv->paid_amount > $inv->total_amount)
-                                    <span class="badge badge-soft-success py-1 px-2 rounded-pill text-nowrap" title="Đã thanh toán đủ và có tiền thừa bù HĐ khác">
-                                        <i class="bi bi-check2-all"></i> Đã TT đủ (Dư bù)
-                                    </span>
+                                @if($inv->status === 'overpaid' || $inv->paid_amount > $inv->total_amount)
+                                    <div class="d-inline-flex flex-column align-items-center">
+                                        <button type="button" class="badge badge-soft-purple py-1 px-2 rounded-pill border-0 shadow-none mb-1 text-nowrap" onclick='openInvoicePaymentModal(@json($invPayData))' title="Đã chuyển dư tiền. Bấm để xem chi tiết thanh toán">
+                                            <i class="bi bi-arrow-up-right-circle-fill"></i> Chuyển dư
+                                        </button>
+                                        <span class="fw-bold font-monospace text-nowrap text-purple" style="font-size: 0.73rem;">
+                                            Dư: +{{ number_format($inv->surplus_amount ?: ($inv->paid_amount - $inv->total_amount), 0, ',', '.') }} đ
+                                        </span>
+                                    </div>
                                 @elseif($inv->status === 'paid' || $remaining <= 0)
                                     <form action="{{ route('invoice.toggle-status', $inv->id) }}" method="POST" class="d-inline">
                                         @csrf
@@ -754,8 +778,8 @@
                         <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold text-dark small mb-1">Thuế suất VAT (%)</label>
                             <select name="tax_rate" id="flow_tax_rate" class="form-select rounded-3 shadow-none" onchange="calculateFlowInvoiceTotal(true)">
+                                <option value="8" selected>8% (Thuế GTGT ưu đãi)</option>
                                 <option value="10">10% (Thuế GTGT phổ thông)</option>
-                                <option value="8">8% (Thuế GTGT ưu đãi)</option>
                                 <option value="5">5% (Thuế GTGT 5%)</option>
                                 <option value="0">0% (Không chịu thuế)</option>
                             </select>
@@ -793,7 +817,7 @@
                                 <span class="input-group-text bg-light text-muted rounded-end-3">đ</span>
                             </div>
                             <div class="form-text small d-flex justify-content-between mt-1">
-                                <span>Còn thiếu: <strong id="flow_create_remaining" class="text-danger font-monospace">0 đ</strong></span>
+                                <span id="flow_create_remaining_label">Còn thiếu: <strong id="flow_create_remaining" class="text-danger font-monospace">0 đ</strong></span>
                             </div>
                         </div>
 
@@ -804,6 +828,7 @@
                                 <option value="unpaid">⏳ Chưa thanh toán</option>
                                 <option value="partial">🔄 Thanh toán 1 phần</option>
                                 <option value="paid">✅ Đã thanh toán đủ</option>
+                                <option value="overpaid">🟣 Chuyển dư</option>
                             </select>
                         </div>
 
@@ -1100,6 +1125,7 @@
                                 <option value="unpaid">⏳ Chưa thanh toán</option>
                                 <option value="partial">🔄 Thanh toán 1 phần</option>
                                 <option value="paid">✅ Đã thanh toán đủ</option>
+                                <option value="overpaid">🟣 Chuyển dư</option>
                                 <option value="cancelled">❌ Đã hủy</option>
                             </select>
                         </div>
@@ -1721,16 +1747,23 @@
         const paidInput = document.getElementById('flow_create_paid');
         const paid = parseNumberFromCommas(paidInput ? paidInput.value : 0);
         const statusSelect = document.getElementById('flow_status_select');
-        const remainingEl = document.getElementById('flow_create_remaining');
+        const remainingLabel = document.getElementById('flow_create_remaining_label');
 
         const remaining = Math.max(0, total - paid);
-        if (remainingEl) {
-            remainingEl.textContent = new Intl.NumberFormat('vi-VN').format(remaining) + ' đ';
-            remainingEl.className = remaining > 0 ? 'text-danger font-monospace' : 'text-success font-monospace';
+        const surplus = Math.max(0, paid - total);
+
+        if (remainingLabel) {
+            if (surplus > 0) {
+                remainingLabel.innerHTML = 'Chuyển dư: <strong id="flow_create_remaining" class="text-purple font-monospace fw-bold">+' + new Intl.NumberFormat('vi-VN').format(surplus) + ' đ</strong>';
+            } else {
+                remainingLabel.innerHTML = 'Còn thiếu: <strong id="flow_create_remaining" class="' + (remaining > 0 ? 'text-danger' : 'text-success') + ' font-monospace">' + new Intl.NumberFormat('vi-VN').format(remaining) + ' đ</strong>';
+            }
         }
 
         if (statusSelect) {
-            if (paid >= total && total > 0) {
+            if (surplus > 0) {
+                statusSelect.value = 'overpaid';
+            } else if (paid >= total && total > 0) {
                 statusSelect.value = 'paid';
             } else if (paid > 0) {
                 statusSelect.value = 'partial';
@@ -1864,10 +1897,10 @@
         const previewStatusEl = document.getElementById('invPayPreviewStatus');
 
         if (newSurplus > 0) {
-            previewRemainingEl.textContent = 'Dư +' + new Intl.NumberFormat('vi-VN').format(newSurplus) + ' đ (Thừa bù HĐ khác)';
-            previewRemainingEl.className = 'fw-bold text-info font-monospace';
-            previewStatusEl.textContent = '✅ Đã thanh toán đủ (Dư bù HĐ cũ)';
-            previewStatusEl.className = 'badge bg-info-subtle text-info py-1 px-2 rounded-pill';
+            previewRemainingEl.textContent = 'Dư +' + new Intl.NumberFormat('vi-VN').format(newSurplus) + ' đ';
+            previewRemainingEl.className = 'fw-bold text-purple font-monospace';
+            previewStatusEl.textContent = '🟣 Chuyển dư';
+            previewStatusEl.className = 'badge badge-soft-purple py-1 px-2 rounded-pill';
         } else if (newRemaining <= 0 && amount > 0) {
             previewRemainingEl.textContent = '0 đ';
             previewRemainingEl.className = 'fw-bold text-success font-monospace';
@@ -2062,7 +2095,12 @@
             const total = getEditInvoiceTotal();
             const paid = parseNumberFromCommas(this.value);
             if (editStatusSelect) {
-                if (paid >= total && total > 0) {
+                if (paid > total && total > 0) {
+                    editStatusSelect.value = 'overpaid';
+                    if (editPaidDateInput && !editPaidDateInput.value) {
+                        editPaidDateInput.value = new Date().toISOString().substring(0, 10);
+                    }
+                } else if (paid >= total && total > 0) {
                     editStatusSelect.value = 'paid';
                     if (editPaidDateInput && !editPaidDateInput.value) {
                         editPaidDateInput.value = new Date().toISOString().substring(0, 10);

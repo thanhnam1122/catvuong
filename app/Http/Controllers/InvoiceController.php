@@ -74,7 +74,7 @@ class InvoiceController extends Controller
             $query->where('partner_id', $partnerId);
         }
 
-        if ($status && in_array($status, ['unpaid', 'partial', 'paid', 'cancelled'])) {
+        if ($status && in_array($status, ['unpaid', 'partial', 'paid', 'overpaid', 'cancelled'])) {
             $query->where('status', $status);
         }
 
@@ -107,6 +107,8 @@ class InvoiceController extends Controller
             } else {
                 $query->orderBy('invoice_number', $order);
             }
+        } elseif ($sortBy === 'date') {
+            $query->orderBy('issue_date', $order)->orderBy('id', $order);
         } else {
             $query->orderBy('issue_date', 'desc')->orderBy('id', 'desc');
         }
@@ -127,6 +129,19 @@ class InvoiceController extends Controller
         if ($toDate) {
             $statsQuery->whereDate('issue_date', '<=', $toDate);
         }
+        if ($status && in_array($status, ['unpaid', 'partial', 'paid', 'overpaid', 'cancelled'])) {
+            $statsQuery->where('status', $status);
+        }
+        if ($search) {
+            $statsQuery->where(function ($q) use ($search) {
+                $q->where('invoice_number', 'like', "%{$search}%")
+                  ->orWhere('title', 'like', "%{$search}%")
+                  ->orWhereHas('partner', function ($sub) use ($search) {
+                      $sub->where('name', 'like', "%{$search}%")
+                          ->orWhere('phone', 'like', "%{$search}%");
+                  });
+            });
+        }
 
         $concernedCount = (clone $statsQuery)->where('is_concerned', true)->count();
         $unconcernedCount = (clone $statsQuery)->where('is_concerned', false)->count();
@@ -135,11 +150,24 @@ class InvoiceController extends Controller
             $statsQuery->where('is_concerned', (bool)$concern);
         }
 
-        $totalAmount = (clone $statsQuery)->sum('total_amount');
-        $totalPaid = (clone $statsQuery)->sum('paid_amount');
-        $totalUnpaid = max(0, $totalAmount - $totalPaid);
-        $totalTax = (clone $statsQuery)->sum('tax_amount');
-        $unpaidCount = (clone $statsQuery)->whereIn('status', ['unpaid', 'partial'])->count();
+        $totalAmount = (float) ((clone $statsQuery)->sum('total_amount'));
+        $totalPaid = (float) ((clone $statsQuery)->sum('paid_amount'));
+        $totalTax = (float) ((clone $statsQuery)->sum('tax_amount'));
+
+        $totalUnpaid = (float) ((clone $statsQuery)
+            ->where('status', '!=', 'cancelled')
+            ->selectRaw('SUM(CASE WHEN total_amount > paid_amount THEN (total_amount - paid_amount) ELSE 0 END) as unpaid')
+            ->value('unpaid') ?? 0);
+
+        $totalSurplus = (float) ((clone $statsQuery)
+            ->where('status', '!=', 'cancelled')
+            ->selectRaw('SUM(CASE WHEN paid_amount > total_amount THEN (paid_amount - total_amount) ELSE 0 END) as surplus')
+            ->value('surplus') ?? 0);
+
+        $unpaidCount = (clone $statsQuery)
+            ->where('status', '!=', 'cancelled')
+            ->whereRaw('total_amount > paid_amount')
+            ->count();
 
         return view('invoice.flow', compact(
             'flow',
@@ -160,6 +188,7 @@ class InvoiceController extends Controller
             'totalAmount',
             'totalPaid',
             'totalUnpaid',
+            'totalSurplus',
             'totalTax',
             'unpaidCount'
         ));
@@ -192,7 +221,7 @@ class InvoiceController extends Controller
             'paid_date' => 'nullable|date',
             'issue_date' => 'required|date',
             'due_date' => 'nullable|date',
-            'status' => 'nullable|in:unpaid,partial,paid,cancelled',
+            'status' => 'nullable|in:unpaid,partial,paid,overpaid,cancelled',
             'notes' => 'nullable|string',
             'sync_debt' => 'nullable|boolean',
         ]);
@@ -224,6 +253,8 @@ class InvoiceController extends Controller
 
         // Tự sinh số hóa đơn nếu bỏ trống hoặc kiểm tra trùng số hóa đơn
         $invoiceNumber = trim((string)($validated['invoice_number'] ?? ''));
+        $issueYear = date('Y', strtotime($validated['issue_date']));
+
         if (empty($invoiceNumber)) {
             $prefix = $validated['type'] === 'out' ? 'HD-XUAT' : 'HD-VAO';
             $invoiceNumber = $prefix . '-' . date('ymd') . '-' . rand(100, 999);
@@ -231,9 +262,10 @@ class InvoiceController extends Controller
                 $invoiceNumber = $prefix . '-' . date('ymd') . '-' . rand(1000, 9999);
             }
         } else {
-            // Kiểm tra trùng lặp trong cùng công ty / đối tác
+            // Kiểm tra trùng lặp trong cùng công ty / đối tác THEO TỪNG NĂM PHÁT HÀNH
             $dupQuery = Invoice::where('company_id', $validated['company_id'])
                 ->where('type', $validated['type'])
+                ->whereYear('issue_date', $issueYear)
                 ->where('invoice_number', $invoiceNumber);
 
             if ($validated['type'] === 'in') {
@@ -242,8 +274,8 @@ class InvoiceController extends Controller
 
             if ($dupQuery->exists()) {
                 $msg = $validated['type'] === 'out'
-                    ? "Số hóa đơn [{$invoiceNumber}] đã tồn tại trong công ty này. Vui lòng nhập số khác."
-                    : "Đối tác này đã có hóa đơn số [{$invoiceNumber}]. Vui lòng nhập số khác.";
+                    ? "Số hóa đơn [{$invoiceNumber}] đã tồn tại trong năm {$issueYear} của công ty này. Vui lòng kiểm tra lại."
+                    : "Đối tác này đã có hóa đơn số [{$invoiceNumber}] trong năm {$issueYear}. Vui lòng kiểm tra lại.";
                 return back()->with('error', $msg)->withInput();
             }
         }
@@ -260,6 +292,8 @@ class InvoiceController extends Controller
 
         if ($reqStatus === 'cancelled') {
             $status = 'cancelled';
+        } elseif ($paidAmount > $totalAmount && $totalAmount > 0) {
+            $status = 'overpaid';
         } elseif ($paidAmount >= $totalAmount && $totalAmount > 0) {
             $status = 'paid';
             $paidAmount = $totalAmount;
@@ -364,12 +398,15 @@ class InvoiceController extends Controller
             'paid_date' => 'nullable|date',
             'issue_date' => 'required|date',
             'due_date' => 'nullable|date',
-            'status' => 'nullable|in:unpaid,partial,paid,cancelled',
+            'status' => 'nullable|in:unpaid,partial,paid,overpaid,cancelled',
             'notes' => 'nullable|string',
         ]);
 
+        $issueYear = date('Y', strtotime($validated['issue_date']));
+
         $dupQuery = Invoice::where('company_id', $validated['company_id'])
             ->where('type', $validated['type'])
+            ->whereYear('issue_date', $issueYear)
             ->where('invoice_number', $validated['invoice_number'])
             ->where('id', '!=', $id);
 
@@ -379,8 +416,8 @@ class InvoiceController extends Controller
 
         if ($dupQuery->exists()) {
             $msg = $validated['type'] === 'out'
-                ? "Số hóa đơn [{$validated['invoice_number']}] đã tồn tại trong công ty này."
-                : "Đối tác này đã có hóa đơn số [{$validated['invoice_number']}].";
+                ? "Số hóa đơn [{$validated['invoice_number']}] đã tồn tại trong năm {$issueYear} của công ty này."
+                : "Đối tác này đã có hóa đơn số [{$validated['invoice_number']}] trong năm {$issueYear}.";
             return back()->with('error', $msg)->withInput();
         }
 
@@ -397,11 +434,11 @@ class InvoiceController extends Controller
 
         if ($reqStatus === 'cancelled') {
             $status = 'cancelled';
-        } elseif ($reqStatus === 'paid') {
+        } elseif ($reqStatus === 'paid' && $paidAmount <= 0) {
             $status = 'paid';
-            if ($paidAmount <= 0) {
-                $paidAmount = $totalAmount;
-            }
+            $paidAmount = $totalAmount;
+        } elseif ($paidAmount > $totalAmount && $totalAmount > 0) {
+            $status = 'overpaid';
         } elseif ($paidAmount >= $totalAmount && $totalAmount > 0) {
             $status = 'paid';
             $paidAmount = $totalAmount;
@@ -503,7 +540,7 @@ class InvoiceController extends Controller
         $surplus = max(0, $invoice->paid_amount - $totalAmount);
 
         if ($surplus > 0) {
-            $statusText = 'Đã thanh toán đủ (Thanh toán thừa +' . number_format($surplus, 0, ',', '.') . ' đ bù HĐ khác)';
+            $statusText = 'Chuyển dư (Dư +' . number_format($surplus, 0, ',', '.') . ' đ)';
         } elseif ($invoice->status === 'paid') {
             $statusText = 'Đã thanh toán đủ';
         } else {
@@ -554,7 +591,7 @@ class InvoiceController extends Controller
     public function toggleStatus($id)
     {
         $invoice = Invoice::findOrFail($id);
-        if ($invoice->status === 'paid') {
+        if ($invoice->status === 'paid' || $invoice->status === 'overpaid') {
             // Chuyển về Chưa thanh toán: Xóa các đợt thanh toán
             $invoice->payments()->delete();
             $invoice->status = 'unpaid';

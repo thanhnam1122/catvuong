@@ -88,7 +88,9 @@ class Invoice extends Model
         }
 
         $total = (float)$this->total_amount;
-        if ($sumPaid >= $total && $total > 0) {
+        if ($sumPaid > $total && $total > 0) {
+            $this->status = 'overpaid';
+        } elseif ($sumPaid >= $total && $total > 0) {
             $this->status = 'paid';
         } elseif ($sumPaid > 0) {
             $this->status = 'partial';
