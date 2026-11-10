@@ -51,7 +51,7 @@ class CompanyController extends Controller
             });
         }
 
-        $partners = $query->orderBy('name')->get();
+        $partners = $query->orderBy('name')->paginate(6)->withQueryString();
 
         // Danh sách CTY của tôi
         $myCompanies = Company::withCount(['partners', 'debts', 'invoices'])

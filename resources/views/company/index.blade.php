@@ -96,6 +96,12 @@
     </div>
 
     <!-- Danh sách thẻ thông tin doanh nghiệp (Profile Card View) -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <span class="text-muted small">
+            Hiển thị {{ $partners->count() }} / {{ $partners->total() }} doanh nghiệp
+        </span>
+    </div>
+
     <div class="row g-3 mb-4">
         @forelse($partners as $partner)
             @php
@@ -302,6 +308,12 @@
             </div>
         @endforelse
     </div>
+
+    @if($partners->hasPages())
+        <div class="d-flex justify-content-center justify-content-md-end mb-4">
+            {{ $partners->links('pagination::bootstrap-5') }}
+        </div>
+    @endif
 </div>
 
 <!-- ========================================================================= -->
