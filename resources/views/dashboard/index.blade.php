@@ -35,6 +35,7 @@
     <div class="card border-0 rounded-4 shadow-sm mb-4 bg-white" style="border: 0.0625rem solid var(--border-soft) !important;">
         <div class="card-body p-3 p-md-4">
             <form action="{{ route('dashboard.index') }}" method="GET" class="row g-2 align-items-end" id="filterAnalyticsForm">
+                <input type="hidden" name="chart_year" value="{{ $targetYear }}">
                 @if($isAdmin)
                     <!-- Chọn CTY (Admin) -->
                     <div class="col-12 col-sm-6 col-md-3 col-lg-2">
@@ -351,7 +352,7 @@
     <!-- HÀNG BIỂU ĐỒ 2: XU HƯỚNG 12 THÁNG -->
     <div class="row g-3 mb-4">
         <!-- Biểu Đồ Xu Hướng 12 Tháng Trong Năm -->
-        <div class="col-12">
+        <div class="col-12" id="chartTimelineMonthsCard">
             <div class="card border-0 rounded-4 shadow-sm bg-white" style="border: 0.0625rem solid var(--border-soft) !important;">
                 <div class="card-header bg-transparent border-0 pt-3 px-3 px-md-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
                     <div>
@@ -359,6 +360,20 @@
                             <i class="bi bi-graph-up-arrow text-primary"></i> Biến Động Dòng Tiền Đầu Vào &amp; Đầu Ra Theo Tháng (Năm {{ $targetYear }})
                         </h6>
                         <span class="text-muted small">Biểu đồ so sánh nhịp độ mua hàng và bán hàng qua 12 tháng</span>
+                    </div>
+
+                    <!-- Chọn Năm Cho Biểu Đồ -->
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="selectChartYear" class="small text-muted fw-semibold mb-0 d-none d-sm-inline">
+                            <i class="bi bi-calendar3 me-1 text-primary"></i>Chọn năm:
+                        </label>
+                        <select id="selectChartYear" class="form-select form-select-sm rounded-pill shadow-none fw-bold text-primary border-primary bg-primary-subtle" style="width: 8rem; cursor: pointer;" onchange="changeChartYear(this.value)">
+                            @foreach($availableYears as $yr)
+                                <option value="{{ $yr }}" {{ $targetYear == $yr ? 'selected' : '' }}>
+                                    Năm {{ $yr }}
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
                 <div class="card-body p-3 p-md-4">
@@ -569,6 +584,14 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
+    // Xử lý đổi năm hiển thị cho biểu đồ biến động dòng tiền 12 tháng
+    function changeChartYear(year) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('chart_year', year);
+        url.hash = 'chartTimelineMonthsCard';
+        window.location.href = url.toString();
+    }
+
     // Xử lý ẩn/hiện ô chọn ngày tùy biến khi đổi select kỳ thời gian
     function handleTimeRangeChange(val) {
         const dateBlock = document.getElementById('dateInputsBlock');

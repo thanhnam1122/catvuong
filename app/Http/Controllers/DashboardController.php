@@ -178,9 +178,36 @@ class DashboardController extends Controller
         usort($partnerStats, fn($a, $b) => $b['volume'] <=> $a['volume']);
 
         // 5. Chuẩn bị dữ liệu biểu đồ xu hướng theo 12 tháng (Timeline Chart)
-        $targetYear = $now->year;
-        if ($fromDate && $toDate && substr($fromDate, 0, 4) === substr($toDate, 0, 4)) {
+        $currentYear = (int)$now->year;
+
+        // Lấy danh sách các năm có hóa đơn thực tế trong hệ thống
+        try {
+            $isPgsql = config('database.default') === 'pgsql';
+            $dbYears = Invoice::selectRaw($isPgsql
+                    ? "DISTINCT EXTRACT(YEAR FROM issue_date)::int as yr"
+                    : "DISTINCT YEAR(issue_date) as yr")
+                ->whereNotNull('issue_date')
+                ->pluck('yr')
+                ->filter()
+                ->map(fn($y) => (int)$y)
+                ->toArray();
+        } catch (\Throwable $e) {
+            $dbYears = [];
+        }
+
+        // Tạo danh sách năm có sẵn (gồm các năm trong DB + tối thiểu các năm gần nhất)
+        $defaultYears = range($currentYear - 2, $currentYear + 1);
+        $availableYears = array_values(array_unique(array_merge($dbYears, $defaultYears)));
+        rsort($availableYears);
+
+        // Xác định năm mục tiêu cho biểu đồ
+        $chartYear = $request->get('chart_year');
+        if ($chartYear && is_numeric($chartYear)) {
+            $targetYear = (int)$chartYear;
+        } elseif ($fromDate && $toDate && substr($fromDate, 0, 4) === substr($toDate, 0, 4)) {
             $targetYear = (int)substr($fromDate, 0, 4);
+        } else {
+            $targetYear = $currentYear;
         }
 
         $monthlyData = [];
@@ -352,6 +379,7 @@ class DashboardController extends Controller
             'tableSearch',
             'activePartnerCount',
             'targetYear',
+            'availableYears',
             'monthlyData',
             'barChartLabels',
             'barChartIn',
