@@ -148,9 +148,12 @@
                     </div>
                 </div>
 
-                <!-- Nút thêm nhanh thẳng hàng -->
-                <div class="col-auto">
-                    <button type="button" class="btn btn-theme-primary btn-sm px-3 rounded-pill d-inline-flex align-items-center justify-content-center gap-1 shadow-sm text-nowrap" style="height: 2.125rem;" data-bs-toggle="modal" data-bs-target="#modalCreateInvoiceFlow" title="Tạo hóa đơn mới">
+                <!-- Nút thêm nhanh & Nhập từ Excel -->
+                <div class="col-auto d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-outline-success btn-sm px-3 rounded-pill d-inline-flex align-items-center justify-content-center gap-1 shadow-sm text-nowrap" style="height: 2.125rem;" data-bs-toggle="modal" data-bs-target="#modalImportInvoiceExcel" title="Đọc dữ liệu hóa đơn từ file Excel">
+                        <i class="bi bi-file-earmark-excel"></i> <span>Nhập Excel</span>
+                    </button>
+                    <button type="button" class="btn btn-theme-primary btn-sm px-3 rounded-pill d-inline-flex align-items-center justify-content-center gap-1 shadow-sm text-nowrap" style="height: 2.125rem;" data-bs-toggle="modal" data-bs-target="#modalCreateInvoiceFlow" title="Tạo hóa đơn mới thủ công">
                         <i class="bi bi-plus-lg"></i> <span>Thêm</span>
                     </button>
                 </div>
@@ -684,6 +687,112 @@
                 {{ $invoices->links('pagination::bootstrap-5') }}
             </div>
         @endif
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL NHẬP HÓA ĐƠN TỪ FILE EXCEL -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modalImportInvoiceExcel" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header bg-white border-bottom py-3 px-4">
+                <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+                    <span class="d-inline-flex align-items-center justify-content-center rounded-3 bg-success-subtle text-success p-2" style="width: 2.25rem; height: 2.25rem; font-size: 1.1rem;">
+                        <i class="bi bi-file-earmark-excel-fill"></i>
+                    </span>
+                    Nhập Hóa Đơn Từ File Excel ({{ $isOut ? 'Hóa Đơn Xuất Ra' : 'Hóa Đơn Đầu Vào' }})
+                </h5>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ route('invoice.import.excel') }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <input type="hidden" name="type" value="{{ $flow }}">
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <!-- Chọn CTY nếu là Admin -->
+                        @if(Auth::check() && Auth::user()->isAdmin())
+                            <div class="col-12">
+                                <label class="form-label fw-semibold text-dark small mb-1">
+                                    Nhập hóa đơn vào CTY <span class="text-danger">*</span>
+                                </label>
+                                <select name="company_id" class="form-select rounded-3 shadow-none" required>
+                                    @foreach($companies as $comp)
+                                        <option value="{{ $comp->id }}" {{ ($companyId == $comp->id) ? 'selected' : '' }}>
+                                            {{ $comp->name }} {{ $comp->code ? '('.$comp->code.')' : '' }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @else
+                            <input type="hidden" name="company_id" value="{{ Auth::user()->company_id }}">
+                        @endif
+
+                        <!-- Tải file mẫu & Hướng dẫn -->
+                        <div class="col-12">
+                            <div class="p-3 rounded-4 bg-light border d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                <div>
+                                    <div class="fw-bold text-dark small mb-1">
+                                        <i class="bi bi-info-circle-fill text-primary me-1"></i> Chưa có file mẫu chuẩn?
+                                    </div>
+                                    <div class="text-muted small">
+                                        Tải file mẫu Excel (.xlsx) đã được thiết kế sẵn các cột và hàng dữ liệu mẫu chuẩn.
+                                    </div>
+                                </div>
+                                <a href="{{ route('invoice.template.download', ['type' => $flow]) }}" class="btn btn-outline-success btn-sm rounded-pill px-3 shadow-sm d-inline-flex align-items-center gap-1">
+                                    <i class="bi bi-download"></i> <span>Tải File Mẫu Excel (.xlsx)</span>
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Chọn file Excel -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold text-dark small mb-1">
+                                Chọn file Excel từ máy tính (.xlsx, .xls, .csv) <span class="text-danger">*</span>
+                            </label>
+                            <input type="file" name="file" class="form-control rounded-3 shadow-none" accept=".xlsx,.xls,.csv" required>
+                            <div class="form-text text-muted small">
+                                Hỗ trợ định dạng: <code>.xlsx</code> (Microsoft Excel), <code>.xls</code>, <code>.csv</code>. Dung lượng tối đa: 20MB.
+                            </div>
+                        </div>
+
+                        <!-- Đồng thời đưa vào sổ nợ -->
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="sync_debt" value="1" id="import_sync_debt" checked>
+                                <label class="form-check-label fw-semibold text-dark small" for="import_sync_debt">
+                                    Đồng thời đưa vào sổ theo dõi công nợ (Tự động ghi nhận nợ phải {{ $isOut ? 'thu từ khách hàng' : 'trả nhà cung cấp' }})
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Quy tắc tự động nhận diện thông minh -->
+                        <div class="col-12">
+                            <div class="card border rounded-3 bg-white">
+                                <div class="card-header bg-white py-2 px-3 fw-bold small text-primary d-flex align-items-center gap-1 border-bottom">
+                                    <i class="bi bi-magic"></i> Quy tắc tự động nhận diện dữ liệu thông minh:
+                                </div>
+                                <div class="card-body p-3 small text-muted">
+                                    <ul class="mb-0 ps-3">
+                                        <li class="mb-1"><strong>Nhận diện doanh nghiệp/đối tác:</strong> Nếu tên đối tác trong file trùng với đối tác đã có, hóa đơn sẽ tự động gán vào đối tác đó. Nếu là tên mới chưa có trong hệ thống, hệ thống sẽ <strong>tự động tạo mới đối tác</strong> vào danh bạ.</li>
+                                        <li class="mb-1"><strong>Số hóa đơn:</strong> Nếu để trống, hệ thống sẽ tự động sinh mã số hóa đơn duy nhất. Nếu đã có số, hệ thống sẽ kiểm tra tránh trùng lặp trong năm phát hành.</li>
+                                        <li class="mb-1"><strong>Thuế suất VAT:</strong> Mặc định là <code>8%</code> nếu cột VAT để trống. Tiền thuế sẽ tự động tính theo công thức nếu không nhập.</li>
+                                        <li class="mb-1"><strong>Phân loại theo dõi:</strong> Nhập <code>1</code> (Quan tâm) hoặc <code>0</code> (Không quan tâm). Mặc định là <code>1</code> (Quan tâm) nếu để trống.</li>
+                                        <li><strong>Ngày lập hóa đơn:</strong> Hỗ trợ các định dạng ngày phổ biến: <code>dd/mm/yyyy</code> (ví dụ: 30/12/2024), <code>yyyy-mm-dd</code> hoặc định dạng ngày tháng chuẩn của Excel.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top py-2 px-4">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-4 shadow-sm d-inline-flex align-items-center gap-1">
+                        <i class="bi bi-cloud-arrow-up-fill"></i> <span>Tiến Hành Đọc File &amp; Nhập</span>
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 

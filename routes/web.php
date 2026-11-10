@@ -57,6 +57,8 @@ Route::middleware('auth')->group(function () {
     Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('users.destroy');
 
     // Hành động Hóa đơn
+    Route::get('/invoices/template/download', [InvoiceController::class, 'downloadTemplate'])->name('invoice.template.download');
+    Route::post('/invoices/import-excel', [InvoiceController::class, 'importExcel'])->name('invoice.import.excel');
     Route::post('/invoices', [InvoiceController::class, 'store'])->name('invoice.store');
     Route::put('/invoices/{id}', [InvoiceController::class, 'update'])->name('invoice.update');
     Route::delete('/invoices/{id}', [InvoiceController::class, 'destroy'])->name('invoice.destroy');

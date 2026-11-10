@@ -12,6 +12,7 @@ use App\Models\InvoicePayment;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use App\Services\ExcelInvoiceService;
 
 class InvoiceController extends Controller
 {
@@ -857,5 +858,82 @@ class InvoiceController extends Controller
         }
 
         return redirect()->back()->with('success', "Đã xóa file [{$fileName}] thành công!");
+    }
+
+    /**
+     * Tải file mẫu Excel (.xlsx) để nhập hóa đơn
+     */
+    public function downloadTemplate(Request $request, ExcelInvoiceService $excelService)
+    {
+        $flow = $request->get('type', 'in') === 'out' ? 'out' : 'in';
+        $flowName = $flow === 'out' ? 'XuatRa' : 'DauVao';
+        $fileName = "Mau_Nhap_Hoa_Don_{$flowName}.xlsx";
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'inv_tpl_') . '.xlsx';
+        $excelService->generateTemplateXlsx($tempPath, $flow);
+
+        return response()->download($tempPath, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Đọc và nhập danh sách hóa đơn từ file Excel (.xlsx / .csv)
+     */
+    public function importExcel(Request $request, ExcelInvoiceService $excelService)
+    {
+        @set_time_limit(300);
+        @ini_set('max_execution_time', '300');
+
+        $request->validate([
+            'file' => 'required|file|max:20480',
+            'type' => 'required|in:in,out',
+            'company_id' => 'required|exists:companies,id',
+            'sync_debt' => 'nullable',
+        ]);
+
+        $currentUser = Auth::user();
+        $isCompanyUser = $currentUser && !$currentUser->isAdmin();
+        $companyId = $isCompanyUser ? (int)$currentUser->company_id : (int)$request->input('company_id');
+        $flow = $request->input('type');
+        $syncDebt = $request->boolean('sync_debt', true);
+
+        $file = $request->file('file');
+        $extension = $file->getClientOriginalExtension();
+        $realPath = $file->getRealPath();
+
+        $rows = $excelService->readRows($realPath, $extension);
+        if (empty($rows)) {
+            return redirect()->back()->with('error', 'Không thể đọc dữ liệu từ file được tải lên hoặc file rỗng. Vui lòng kiểm tra lại định dạng file.');
+        }
+
+        $result = $excelService->import($rows, $companyId, $flow, $syncDebt);
+
+        if (!$result['success']) {
+            return redirect()->back()->with('error', $result['message']);
+        }
+
+        $imported = $result['imported_count'];
+        $newPartners = $result['new_partners_count'];
+        $skipped = $result['skipped_count'];
+
+        $flowLabel = $flow === 'out' ? 'hóa đơn xuất ra' : 'hóa đơn đầu vào';
+        $msg = "Đã nhập thành công {$imported} {$flowLabel}!";
+        if ($newPartners > 0) {
+            $msg .= " Đã tự động tạo mới {$newPartners} doanh nghiệp vào danh bạ.";
+        }
+        if ($skipped > 0) {
+            $msg .= " Bỏ qua {$skipped} dòng không hợp lệ hoặc bị trùng số.";
+        }
+
+        if (!empty($result['errors'])) {
+            $warningMsg = implode('<br>', array_slice($result['errors'], 0, 5));
+            if (count($result['errors']) > 5) {
+                $warningMsg .= '<br>...và thêm ' . (count($result['errors']) - 5) . ' cảnh báo khác.';
+            }
+            return redirect()->back()->with('success', $msg)->with('warning', $warningMsg);
+        }
+
+        return redirect()->back()->with('success', $msg);
     }
 }
