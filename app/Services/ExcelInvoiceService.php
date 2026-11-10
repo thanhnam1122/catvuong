@@ -37,6 +37,10 @@ class ExcelInvoiceService
      */
     protected function readXlsx(string $filePath): array
     {
+        if (!class_exists('ZipArchive')) {
+            return [];
+        }
+
         $zip = new ZipArchive();
         if ($zip->open($filePath) !== true) {
             return [];
@@ -574,10 +578,106 @@ class ExcelInvoiceService
     }
 
     /**
+     * Tạo file mẫu CSV (.csv) chuẩn UTF-8 có BOM (Excel mở trực tiếp 100% không lỗi font tiếng Việt)
+     */
+    public function generateTemplateCsv(string $outputPath, string $flow = 'in'): bool
+    {
+        $headers = [
+            'Số Hóa Đơn',
+            'Tên Doanh Nghiệp / Đối Tác',
+            'Mã Số Thuế',
+            'Số Điện Thoại',
+            'Nội Dung Diễn Giải',
+            'Tiền Trước Thuế',
+            'Thuế Suất VAT (%)',
+            'Tiền Thuế VAT',
+            'Đã Thanh Toán',
+            'Ngày Lập (dd/mm/yyyy)',
+            'Hạn Thanh Toán (dd/mm/yyyy)',
+            'Ngày Thanh Toán (dd/mm/yyyy)',
+            'Phân Loại (1=Quan tâm, 0=Không)',
+            'Ghi Chú',
+        ];
+
+        $today = date('d/m/Y');
+        $after30Days = date('d/m/Y', strtotime('+30 days'));
+
+        $sampleRows = [
+            [
+                '51567',
+                $flow === 'out' ? 'Công Ty TNHH Đại Phát' : 'Bảo Gia Trần',
+                '0312345678',
+                '0901234567',
+                $flow === 'out' ? 'Cung cấp thiết bị văn phòng' : 'Vé máy bay công tác',
+                '7814815',
+                '8',
+                '625185',
+                '8440000',
+                $today,
+                $after30Days,
+                $today,
+                '1',
+                'Đã thanh toán đủ',
+            ],
+            [
+                '51568',
+                $flow === 'out' ? 'Đại Lý Điện Máy Toàn Thắng' : 'Sơn Sài Gòn Hải Phòng',
+                '0398765432',
+                '0918333444',
+                $flow === 'out' ? 'Xuất kho thiết bị đợt 1' : 'Sơn tường nội thất',
+                '7450000',
+                '8',
+                '596000',
+                '8046000',
+                $today,
+                $after30Days,
+                $today,
+                '1',
+                'Đã thanh toán đủ',
+            ],
+            [
+                '51569',
+                $flow === 'out' ? 'Công Ty CP Đầu Tư Sao Mai' : 'Công Ty May Thêu Thuận Tiến',
+                '0108889999',
+                '0987654321',
+                $flow === 'out' ? 'Dịch vụ tư vấn giải pháp' : 'May đồng phục nhân viên',
+                '15000000',
+                '10',
+                '1500000',
+                '0',
+                $today,
+                $after30Days,
+                '',
+                '1',
+                'Chưa thanh toán',
+            ],
+        ];
+
+        $fp = @fopen($outputPath, 'w');
+        if (!$fp) {
+            return false;
+        }
+
+        // Ghi BOM UTF-8 (\xEF\xBB\xBF) để Excel mở tiếng Việt chuẩn
+        fwrite($fp, "\xEF\xBB\xBF");
+        fputcsv($fp, $headers);
+        foreach ($sampleRows as $row) {
+            fputcsv($fp, $row);
+        }
+        fclose($fp);
+
+        return true;
+    }
+
+    /**
      * Tạo file mẫu Excel (.xlsx) với định dạng và hàng mẫu chuẩn
      */
     public function generateTemplateXlsx(string $outputPath, string $flow = 'in'): bool
     {
+        if (!class_exists('ZipArchive')) {
+            return false;
+        }
+
         $zip = new ZipArchive();
         if ($zip->open($outputPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             return false;

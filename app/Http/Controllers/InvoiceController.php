@@ -861,19 +861,30 @@ class InvoiceController extends Controller
     }
 
     /**
-     * Tải file mẫu Excel (.xlsx) để nhập hóa đơn
+     * Tải file mẫu Excel (.xlsx / .csv) để nhập hóa đơn
      */
     public function downloadTemplate(Request $request, ExcelInvoiceService $excelService)
     {
         $flow = $request->get('type', 'in') === 'out' ? 'out' : 'in';
         $flowName = $flow === 'out' ? 'XuatRa' : 'DauVao';
-        $fileName = "Mau_Nhap_Hoa_Don_{$flowName}.xlsx";
 
-        $tempPath = tempnam(sys_get_temp_dir(), 'inv_tpl_') . '.xlsx';
-        $excelService->generateTemplateXlsx($tempPath, $flow);
+        if (class_exists('ZipArchive')) {
+            $fileName = "Mau_Nhap_Hoa_Don_{$flowName}.xlsx";
+            $tempPath = tempnam(sys_get_temp_dir(), 'inv_tpl_') . '.xlsx';
+            if ($excelService->generateTemplateXlsx($tempPath, $flow)) {
+                return response()->download($tempPath, $fileName, [
+                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                ])->deleteFileAfterSend(true);
+            }
+        }
+
+        // Dự phòng file mẫu .csv UTF-8 chuẩn nếu môi trường chưa bật ZipArchive
+        $fileName = "Mau_Nhap_Hoa_Don_{$flowName}.csv";
+        $tempPath = tempnam(sys_get_temp_dir(), 'inv_tpl_') . '.csv';
+        $excelService->generateTemplateCsv($tempPath, $flow);
 
         return response()->download($tempPath, $fileName, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Type' => 'text/csv; charset=UTF-8',
         ])->deleteFileAfterSend(true);
     }
 
@@ -892,14 +903,17 @@ class InvoiceController extends Controller
             'sync_debt' => 'nullable',
         ]);
 
+        $file = $request->file('file');
+        $extension = strtolower($file->getClientOriginalExtension());
+        if ($extension === 'xlsx' && !class_exists('ZipArchive')) {
+            return redirect()->back()->with('error', 'Máy chủ PHP chưa bật thư viện ZipArchive để đọc file .xlsx. Vui lòng chuyển file sang định dạng .csv (UTF-8) hoặc bật extension=zip trong php.ini.');
+        }
+
         $currentUser = Auth::user();
         $isCompanyUser = $currentUser && !$currentUser->isAdmin();
         $companyId = $isCompanyUser ? (int)$currentUser->company_id : (int)$request->input('company_id');
         $flow = $request->input('type');
         $syncDebt = $request->boolean('sync_debt', true);
-
-        $file = $request->file('file');
-        $extension = $file->getClientOriginalExtension();
         $realPath = $file->getRealPath();
 
         $rows = $excelService->readRows($realPath, $extension);
